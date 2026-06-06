@@ -1,0 +1,164 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ShotUpload",
+  "description": "Espresso shot data uploaded from REA (Decent Espresso app) to Visualizer",
+  "type": "object",
+  "required": ["id", "timestamp", "duration", "measurements", "workflow"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique shot identifier from REA"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the shot was recorded"
+    },
+    "duration": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total shot duration in seconds (from first espresso-phase sample to last)"
+    },
+    "measurements": {
+      "type": "array",
+      "description": "Time-series of machine and scale snapshots, starting from the first espresso phase (preinfusion or pouring)",
+      "items": {
+        "type": "object",
+        "required": ["elapsed", "machine"],
+        "properties": {
+          "elapsed": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Seconds since the first espresso-phase sample"
+          },
+          "machine": {
+            "type": "object",
+            "required": [
+              "timestamp",
+              "state",
+              "flow",
+              "pressure",
+              "targetFlow",
+              "targetPressure",
+              "mixTemperature",
+              "groupTemperature",
+              "targetMixTemperature",
+              "targetGroupTemperature",
+              "profileFrame"
+            ],
+            "properties": {
+              "timestamp": { "type": "string", "format": "date-time" },
+              "state": {
+                "type": "object",
+                "properties": {
+                  "state": { "type": "string" },
+                  "substate": { "type": "string" }
+                },
+                "required": ["state", "substate"]
+              },
+              "flow": { "type": "number" },
+              "pressure": { "type": "number" },
+              "targetFlow": { "type": "number" },
+              "targetPressure": { "type": "number" },
+              "mixTemperature": { "type": "number" },
+              "groupTemperature": { "type": "number" },
+              "targetMixTemperature": { "type": "number" },
+              "targetGroupTemperature": { "type": "number" },
+              "profileFrame": { "type": "integer" },
+              "steamTemperature": { "type": "integer" }
+            }
+          },
+          "scale": {
+            "type": ["object", "null"],
+            "description": "Scale/weight snapshot; null if no scale is connected",
+            "properties": {
+              "timestamp": { "type": "string", "format": "date-time" },
+              "weight": { "type": "number" },
+              "weightFlow": { "type": "number" },
+              "battery": { "type": ["integer", "null"] }
+            },
+            "required": ["timestamp", "weight", "weightFlow"]
+          },
+          "volume": {
+            "type": ["number", "null"],
+            "description": "Volumetric measurement if available"
+          }
+        }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "The workflow (profile + context) used for this shot",
+      "required": ["id", "name", "profile"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "profile": {
+          "type": "object",
+          "description": "Full espresso profile object"
+        },
+        "context": {
+          "type": "object",
+          "description": "Brew context: dose, grinder, coffee bean, etc.",
+          "properties": {
+            "targetDoseWeight": { "type": ["number", "null"] },
+            "targetYield": { "type": ["number", "null"] },
+            "grinderId": { "type": ["string", "null"] },
+            "grinderModel": { "type": ["string", "null"] },
+            "grinderSetting": { "type": ["string", "null"] },
+            "beanBatchId": { "type": ["string", "null"] },
+            "coffeeName": { "type": ["string", "null"] },
+            "coffeeRoaster": { "type": ["string", "null"] },
+            "finalBeverageType": { "type": ["string", "null"] },
+            "baristaName": { "type": ["string", "null"] },
+            "drinkerName": { "type": ["string", "null"] },
+            "extras": {
+              "type": ["object", "null"],
+              "description": "Arbitrary plugin-supplied metadata"
+            }
+          }
+        },
+        "steamSettings": {
+          "type": "object",
+          "properties": {
+            "targetTemperature": { "type": "integer" },
+            "duration": { "type": "integer" },
+            "flow": { "type": "number" },
+            "stopAtTemperature": { "type": "number" }
+          }
+        },
+        "hotWaterData": {
+          "type": "object",
+          "properties": {
+            "targetTemperature": { "type": "integer" },
+            "duration": { "type": "integer" },
+            "volume": { "type": "integer" },
+            "flow": { "type": "number" }
+          }
+        },
+        "rinseData": {
+          "type": "object",
+          "properties": {
+            "targetTemperature": { "type": "integer" },
+            "duration": { "type": "integer" },
+            "flow": { "type": "number" }
+          }
+        }
+      }
+    },
+    "annotations": {
+      "type": "object",
+      "description": "User-supplied notes and tags for this shot",
+      "properties": {
+        "espressoNotes": { "type": ["string", "null"] },
+        "grindNotes": { "type": ["string", "null"] },
+        "drinkNotes": { "type": ["string", "null"] },
+        "extras": {
+          "type": ["object", "null"],
+          "description": "Arbitrary plugin-supplied annotations"
+        }
+      }
+    }
+  }
+}

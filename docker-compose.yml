@@ -1,0 +1,14 @@
+# Decent Visualizer Backend
+#
+# Usage on the VM:
+#   docker compose up -d
+#   docker compose logs -f backend
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "80:8000"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped

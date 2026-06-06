@@ -1,0 +1,40 @@
+[project]
+name = "decent-visualizer"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.3",
+    "pydantic-settings>=2.14.1",
+    "supabase>=2.31.0",
+    "uvicorn[standard]>=0.49.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "N",
+    "W",
+    "UP",
+    "B",
+    "SIM",
+    "RUF",
+]
+ignore = [
+    "N815",
+    "B008",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

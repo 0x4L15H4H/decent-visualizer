@@ -1,0 +1,39 @@
+# ── GCP ────────────────────────────────────────────────────────────────
+# Create a project at console.cloud.google.com and enable billing.
+# Run: gcloud auth application-default login
+gcp_project_id = "decent-visualizer"
+gcp_region     = "us-central1"     # us-east1, us-central1, or us-west1 (Always Free)
+gcp_zone       = "us-central1-a"
+
+# Machine type: e2-micro (Always Free), e2-small (~$8/mo), e2-medium (~$17/mo)
+vm_machine_type = "e2-micro"
+vm_boot_disk_size_gb = 30      # Up to 30GB (Always Free)
+
+# ── Supabase ───────────────────────────────────────────────────────────
+# Create an org at supabase.com/dashboard/org/new
+# Org slug is in the URL: supabase.com/dashboard/org/<slug>
+supabase_org_id = "glvwqtjhnydtixrlcfxf"
+
+# Choose a region close to your GCP region for low latency
+supabase_db_region     = "us-east-2"
+supabase_instance_size = "nano"
+
+# Secrets (supabase_admin_token, supabase_db_password, supabase_service_key) go in Infisical.
+
+# ── Cloudflare ─────────────────────────────────────────────────────────
+# Account ID: right sidebar or URL in dash.cloudflare.com
+cloudflare_account_id = "b1357ee146ae17c1780cfaf0b2a3a6b6"
+
+# Secret (cloudflare_api_token) goes in Infisical.
+
+# Optional: Custom domain.
+# 1. Buy a domain (~$10/yr on Cloudflare Registrar, Porkbun, Namecheap)
+# 2. Add it to Cloudflare (dash.cloudflare.com → Add Site)
+# 3. Grab the Zone ID from the domain's Overview page (right sidebar)
+# Leave domain = "" and cloudflare_zone_id = "" to skip TLS/domain setup.
+domain                = "alishah.xyz"
+cloudflare_zone_id    = "201834cd65f5a2d4818f9cf79897cb5f"
+
+# ── Application ────────────────────────────────────────────────────────
+project_name = "Decent Visualizer"
+project_slug = "decent-visualizer"

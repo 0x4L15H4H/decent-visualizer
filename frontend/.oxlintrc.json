@@ -1,0 +1,15 @@
+{
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "pedantic": "warn",
+    "perf": "warn"
+  },
+  "plugins": ["react", "typescript", "unicorn", "import"],
+  "rules": {
+    "no-unused-vars": "off",
+    "react-in-jsx-scope": "off",
+    "no-unassigned-import": "off",
+    "prefer-query-selector": "off"
+  }
+}
