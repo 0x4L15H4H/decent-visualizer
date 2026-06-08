@@ -26,11 +26,11 @@ cloudflare_account_id = "your-account-id"
 
 # Secret (cloudflare_api_token) goes in Infisical.
 
-# Optional: Custom domain.
+# Custom domain (required). The API is served at api.<domain> through a
+# Cloudflare Tunnel and the frontend at www.<domain>.
 # 1. Buy a domain (~$10/yr on Cloudflare Registrar, Porkbun, Namecheap)
 # 2. Add it to Cloudflare (dash.cloudflare.com → Add Site)
 # 3. Grab the Zone ID from the domain's Overview page (right sidebar)
-# Leave domain = "" and cloudflare_zone_id = "" to skip TLS/domain setup.
 domain             = "example.com"
 cloudflare_zone_id = "your-zone-id"
 

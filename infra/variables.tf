@@ -91,13 +91,11 @@ variable "cloudflare_account_id" {
 variable "cloudflare_zone_id" {
   description = "Cloudflare zone ID for the domain (from dash.cloudflare.com → domain → Overview → right sidebar)."
   type        = string
-  default     = ""
 }
 
 variable "domain" {
-  description = "Root domain (e.g. example.com). Leave empty to use *.pages.dev for frontend and bare IP for backend."
+  description = "Root domain (e.g. example.com). The frontend is served at www.<domain> and the API at api.<domain> via Cloudflare Tunnel."
   type        = string
-  default     = ""
 }
 
 # ── Application ────────────────────────────────────────────────────────

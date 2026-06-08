@@ -1,19 +1,9 @@
 # ── Networking ────────────────────────────────────────────────────────
+# No inbound HTTP rule: the backend is reached only through the Cloudflare
+# Tunnel (cloudflared dials out), so no public port is exposed. SSH for
+# deploys is covered by the default network's allow-ssh rule.
 
-resource "google_compute_firewall" "http" {
-  name    = "${var.name}-allow-http"
-  network = "default"
-
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
-
-  source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["${var.name}-http"]
-}
-
-# Static external IP for the VM
+# Static external IP for the VM (used for SSH / deploys)
 resource "google_compute_address" "static" {
   name   = "${var.name}-ip"
   region = var.region
@@ -25,7 +15,6 @@ resource "google_compute_instance" "app" {
   name         = var.name
   machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["${var.name}-http"]
 
   boot_disk {
     initialize_params {
@@ -45,10 +34,11 @@ resource "google_compute_instance" "app" {
 
   metadata = {
     startup-script = templatefile("${path.module}/startup.sh", {
-      name         = var.name
-      supabase_url = var.supabase_url
-      supabase_key = var.supabase_service_key
-      cors_origin  = var.cors_origin
+      name              = var.name
+      supabase_url      = var.supabase_url
+      supabase_key      = var.supabase_service_key
+      cors_origin       = var.cors_origin
+      cloudflared_token = var.cloudflared_token
     })
   }
 

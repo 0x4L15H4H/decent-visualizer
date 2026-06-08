@@ -8,6 +8,7 @@ NAME="${name}"
 SUPABASE_URL="${supabase_url}"
 SUPABASE_SERVICE_KEY="${supabase_key}"
 CORS_ORIGIN="${cors_origin}"
+CLOUDFLARED_TOKEN="${cloudflared_token}"
 
 APP_DIR="/opt/app"
 
@@ -55,5 +56,21 @@ CORS_ORIGINS=$CORS_ORIGIN
 ENV
 chown appuser:appuser "$APP_DIR/backend/.env"
 chmod 600 "$APP_DIR/backend/.env"
+
+# ── Cloudflare Tunnel (cloudflared) ─────────────────────────────────────
+# Exposes the backend (bound to localhost) to Cloudflare's edge over an
+# outbound connection — no inbound ports required.
+
+log "Installing cloudflared..."
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+  -o /usr/share/keyrings/cloudflare-main.gpg
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] \
+https://pkg.cloudflare.com/cloudflared $(. /etc/os-release && echo "$VERSION_CODENAME") main" \
+  > /etc/apt/sources.list.d/cloudflared.list
+apt-get update -qq
+apt-get install -y -qq cloudflared
+
+log "Registering cloudflared service..."
+cloudflared service install "$CLOUDFLARED_TOKEN"
 
 log "Startup complete. Deploy with scripts/deploy.sh."

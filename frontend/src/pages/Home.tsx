@@ -3,7 +3,6 @@ import { api } from "../api";
 
 function Home() {
   const [health, setHealth] = useState<string>("loading...");
-  const [ping, setPing] = useState<string>("loading...");
 
   useEffect(() => {
     api
@@ -11,12 +10,6 @@ function Home() {
       .then((res) => res.json())
       .then((data) => setHealth(data.status))
       .catch(() => setHealth("error"));
-
-    api
-      .get("/api/ping")
-      .then((res) => res.json())
-      .then((data) => setPing(`${data.message} @ ${data.timestamp}`))
-      .catch(() => setPing("error"));
   }, []);
 
   return (
@@ -26,10 +19,6 @@ function Home() {
       <div className="mt-4 rounded-lg bg-white p-4 shadow">
         <p className="text-sm text-gray-500">Backend status:</p>
         <p className="mt-1 text-lg font-semibold">{health}</p>
-      </div>
-      <div className="mt-4 rounded-lg bg-white p-4 shadow">
-        <p className="text-sm text-gray-500">Ping response:</p>
-        <p className="mt-1 text-lg font-semibold">{ping}</p>
       </div>
     </div>
   );

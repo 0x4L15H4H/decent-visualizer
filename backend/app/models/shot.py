@@ -100,6 +100,16 @@ class ShotUpload(BaseModel):
     annotations: Annotations | None = None
 
 
+class ShotSummary(BaseModel):
+    """Lightweight shot row for list views — omits the large measurements
+    time-series and workflow profile to keep VM egress down."""
+
+    id: str
+    timestamp: datetime
+    duration: float
+    coffee_name: str | None = None
+
+
 class ShotUploadCreate(BaseModel):
     timestamp: datetime
     duration: float = Field(ge=0)

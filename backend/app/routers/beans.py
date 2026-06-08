@@ -11,7 +11,7 @@ def _storage() -> BeanStorage:
     return BeanStorage(get_supabase())
 
 
-@router.get("/", response_model=list[Bean])
+@router.get("", response_model=list[Bean])
 def list_beans(storage: BeanStorage = Depends(_storage)):
     return storage.list()
 
@@ -24,7 +24,7 @@ def get_bean(bean_id: str, storage: BeanStorage = Depends(_storage)):
     return bean
 
 
-@router.post("/", response_model=Bean, status_code=201)
+@router.post("", response_model=Bean, status_code=201)
 def create_bean(data: BeanCreate, storage: BeanStorage = Depends(_storage)):
     return storage.create(data)
 

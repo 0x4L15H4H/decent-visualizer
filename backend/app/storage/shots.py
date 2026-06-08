@@ -3,8 +3,12 @@ from typing import Any, cast
 from postgrest._sync.request_builder import SyncRequestBuilder
 from postgrest.types import JSON
 
-from app.models.shot import ShotUpload, ShotUploadCreate, ShotUploadUpdate
+from app.models.shot import ShotSummary, ShotUpload, ShotUploadCreate, ShotUploadUpdate
 from supabase import Client
+
+# Lightweight projection for list views. The coffee name lives in the workflow
+# JSON; selecting just that path avoids shipping the whole workflow/measurements.
+_SUMMARY_SELECT = "id,timestamp,duration,coffee_name:workflow->context->>coffeeName"
 
 
 class ShotStorage:
@@ -13,9 +17,9 @@ class ShotStorage:
     def __init__(self, client: Client) -> None:
         self._table = client.table("shots")
 
-    def list(self) -> list[ShotUpload]:
-        response = self._table.select("*").order("timestamp", desc=True).execute()
-        return [self._to_model(row) for row in response.data]
+    def list(self) -> list[ShotSummary]:
+        response = self._table.select(_SUMMARY_SELECT).order("timestamp", desc=True).execute()
+        return [self._to_summary(row) for row in response.data]
 
     def get(self, shot_id: str) -> ShotUpload | None:
         response = self._table.select("*").eq("id", shot_id).execute()
@@ -48,3 +52,7 @@ class ShotStorage:
     def _to_model(row: JSON) -> ShotUpload:
         record = cast(dict[str, Any], row)
         return ShotUpload.model_validate({k: v for k, v in record.items() if k != "created_at"})
+
+    @staticmethod
+    def _to_summary(row: JSON) -> ShotSummary:
+        return ShotSummary.model_validate(cast(dict[str, Any], row))

@@ -11,7 +11,7 @@
 #   Docker running locally
 #   pnpm installed locally
 #   wrangler installed (npm i -g wrangler) or npx will handle it
-#   VM running (terraform apply done)
+#   VM running (tofu apply done)
 
 set -euo pipefail
 
@@ -22,11 +22,11 @@ FRONTEND_DIR="$ROOT_DIR/frontend"
 
 # ── Resolve infrastructure from Terraform outputs ──────────────────────
 
-VM_IP="$(terraform -chdir="$INFRA_DIR" output -raw vm_external_ip)"
-GCP_PROJECT="$(terraform -chdir="$INFRA_DIR" output -raw gcp_project_id)"
-GCP_ZONE="$(terraform -chdir="$INFRA_DIR" output -raw gcp_zone)"
-BACKEND_URL="$(terraform -chdir="$INFRA_DIR" output -raw backend_url)"
-FRONTEND_URL="$(terraform -chdir="$INFRA_DIR" output -raw frontend_url)"
+VM_IP="$(tofu -chdir="$INFRA_DIR" output -raw vm_external_ip)"
+GCP_PROJECT="$(tofu -chdir="$INFRA_DIR" output -raw gcp_project_id)"
+GCP_ZONE="$(tofu -chdir="$INFRA_DIR" output -raw gcp_zone)"
+BACKEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw backend_url)"
+FRONTEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw frontend_url)"
 
 echo "→ Backend:  $BACKEND_URL"
 echo "→ Frontend: $FRONTEND_URL"

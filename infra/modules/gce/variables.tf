@@ -42,7 +42,12 @@ variable "supabase_service_key" {
 }
 
 variable "cors_origin" {
-  description = "Allowed CORS origin for the backend"
+  description = "Comma-separated CORS allow-list for the backend"
   type        = string
-  default     = "*"
+}
+
+variable "cloudflared_token" {
+  description = "Cloudflare Tunnel token; cloudflared runs on the VM to expose the backend without an open port"
+  type        = string
+  sensitive   = true
 }

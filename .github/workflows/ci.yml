@@ -44,9 +44,47 @@ jobs:
             frontend:
               - frontend/**
 
+  test:
+    name: Lint & test
+    needs: changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Backend ──
+      - uses: astral-sh/setup-uv@v5
+        if: needs.changes.outputs.backend == 'true'
+      - name: Backend lint
+        if: needs.changes.outputs.backend == 'true'
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+          uv run ruff format --check .
+        working-directory: backend
+
+      # ── Frontend ──
+      - uses: pnpm/action-setup@v4
+        if: needs.changes.outputs.frontend == 'true'
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        if: needs.changes.outputs.frontend == 'true'
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Frontend lint, typecheck & test
+        if: needs.changes.outputs.frontend == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+        working-directory: frontend
+
   infra:
     name: Infra
-    needs: changes
+    needs: [changes, test]
     if: |
       needs.changes.outputs.infra == 'true' ||
       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'infra'))
@@ -87,9 +125,10 @@ jobs:
 
   backend:
     name: Deploy backend
-    needs: [changes, infra]
+    needs: [changes, test, infra]
     if: |
       always() &&
+      needs.test.result == 'success' &&
       needs.infra.result != 'failure' &&
       (
         needs.changes.outputs.backend == 'true' ||
@@ -145,9 +184,10 @@ jobs:
 
   frontend:
     name: Deploy frontend
-    needs: [changes, infra]
+    needs: [changes, test, infra]
     if: |
       always() &&
+      needs.test.result == 'success' &&
       needs.infra.result != 'failure' &&
       (
         needs.changes.outputs.frontend == 'true' ||

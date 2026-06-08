@@ -11,9 +11,11 @@ class Settings(BaseSettings):
 
     supabase_url: str
     supabase_service_key: str
-    # Comma-separated list of allowed origins, or "*" for any.
-    # Examples: "https://example.com,https://www.example.com"
-    cors_origins: str = "*"
+
+    # Comma-separated list of allowed origins. Required — credentialed CORS
+    # cannot use a wildcard, so an explicit list must always be provided.
+    # Example: "https://example.com,https://www.example.com"
+    cors_origins: str
 
 
 @lru_cache

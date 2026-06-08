@@ -2,12 +2,15 @@
 
 A split-stack app: Python/FastAPI backend on GCE, React/Vite frontend on Cloudflare Pages, Supabase for the database.
 
+The backend is **not** exposed on a public port. A [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/) (`cloudflared` running on the VM) dials out to Cloudflare, which terminates TLS at the edge and routes `https://api.<domain>` to the backend over the VM's loopback. This keeps the VM's firewall closed, hides its IP, and gives the HTTPS frontend an HTTPS API to call. Responses are gzip-compressed and the shot list endpoint returns a slim summary (no measurement time-series) to stay within the GCE free-tier egress budget.
+
 ## CI/CD
 
-Two GitHub Actions workflows handle deployment:
+A single GitHub Actions workflow, **`ci.yml`**, handles everything. It uses path filters so each job only runs when its area changed (or via the `workflow_dispatch` target input):
 
-- **`infra.yml`** — runs OpenTofu on changes to `infra/`. Plans on PRs, applies on merge to main.
-- **`deploy.yml`** — deploys the backend (Docker → GCE) and/or frontend (build → Cloudflare Pages) on changes to `backend/` or `frontend/`.
+- **`infra`** — runs OpenTofu on changes to `infra/`. Plans on PRs, applies on merge to main.
+- **`backend`** — deploys the backend (Docker → GCE) on changes to `backend/` or `docker-compose.yml`.
+- **`frontend`** — builds and deploys the frontend (→ Cloudflare Pages) on changes to `frontend/`.
 
 ### GitHub Secrets
 
@@ -28,7 +31,7 @@ Secrets are stored in Infisical under the **`prod`** environment of the **`decen
 | `TF_VAR_supabase_admin_token` | Supabase PAT — create at supabase.com/dashboard/account/tokens |
 | `TF_VAR_supabase_service_key` | Supabase service role key — Settings → API in the Supabase dashboard |
 | `TF_VAR_supabase_db_password` | Database password for the Supabase project — generate one with `openssl rand -base64 32` and store it here before running `tofu apply` for the first time |
-| `TF_VAR_cloudflare_api_token` | Cloudflare API token with `Account / Cloudflare Pages / Edit` and `Zone / DNS Settings / Edit` permissions |
+| `TF_VAR_cloudflare_api_token` | Cloudflare API token with `Account / Cloudflare Pages / Edit`, `Account / Cloudflare Tunnel / Edit`, and `Zone / DNS Settings / Edit` permissions |
 
 ### Non-secret config (`infra/terraform.tfvars`)
 
@@ -49,8 +52,8 @@ cp infra/terraform.tfvars.example infra/terraform.tfvars
 | `supabase_db_region` | Supabase region, e.g. `us-east-1` |
 | `supabase_instance_size` | `nano`, `micro`, `small`, `medium`, `large`, or `xlarge` |
 | `cloudflare_account_id` | Cloudflare account ID from the dashboard sidebar |
-| `cloudflare_zone_id` | Zone ID from the domain's Overview page (leave empty to skip custom domain) |
-| `domain` | Root domain, e.g. `example.com` (leave empty to use `*.pages.dev` and bare IP) |
+| `cloudflare_zone_id` | Zone ID from the domain's Overview page |
+| `domain` | Root domain, e.g. `example.com` — frontend served at `www.<domain>`, API at `api.<domain>` via Cloudflare Tunnel |
 
 ### GCP Workload Identity Federation setup
 

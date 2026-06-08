@@ -4,15 +4,14 @@ variable "account_id" {
 }
 
 variable "zone_id" {
-  description = "Cloudflare zone ID for the domain (from dash.cloudflare.com → domain → Overview → right sidebar). Leave empty if not using a custom domain."
+  description = "Cloudflare zone ID for the domain (from dash.cloudflare.com → domain → Overview → right sidebar)."
   type        = string
-  default     = ""
 }
 
-
-variable "backend_ip" {
-  description = "Static IP of the GCE backend (used for api.example.com A record)"
-  type        = string
+variable "backend_port" {
+  description = "Port the backend listens on, reached by cloudflared over the VM's loopback"
+  type        = number
+  default     = 80
 }
 
 variable "project_name" {
@@ -23,9 +22,8 @@ variable "project_name" {
 # ── Optional domain ────────────────────────────────────────────────────
 
 variable "domain" {
-  description = "Root domain (e.g. example.com). Leave empty to use *.pages.dev and bare IP."
+  description = "Root domain (e.g. example.com)."
   type        = string
-  default     = ""
 }
 
 variable "api_subdomain" {

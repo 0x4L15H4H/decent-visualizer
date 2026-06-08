@@ -4,11 +4,12 @@ output "pages_url" {
 }
 
 output "api_url" {
-  description = "Public API URL — https://api.<domain> if domain set, else http://<IP>"
+  description = "Public API URL (https://api.<domain>)"
   value       = local.api_url
 }
 
-output "has_domain" {
-  description = "Whether a custom domain is configured"
-  value       = local.has_domain
+output "tunnel_token" {
+  description = "Token used by cloudflared on the VM to run the API tunnel"
+  value       = cloudflare_tunnel.api.tunnel_token
+  sensitive   = true
 }
