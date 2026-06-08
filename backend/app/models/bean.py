@@ -14,6 +14,7 @@ class Bean(BaseModel):
     roast_level: str | None = None
     roast_date: datetime | None = None
     notes: str | None = None
+    created_at: datetime
 
 
 class BeanCreate(BaseModel):

@@ -98,6 +98,7 @@ class ShotUpload(BaseModel):
     measurements: list[Measurement]
     workflow: Workflow
     annotations: Annotations | None = None
+    created_at: datetime
 
 
 class ShotSummary(BaseModel):

@@ -45,5 +45,4 @@ class BeanStorage:
 
     @staticmethod
     def _to_model(row: JSON) -> Bean:
-        record = cast(dict[str, Any], row)
-        return Bean.model_validate({k: v for k, v in record.items() if k != "created_at"})
+        return Bean.model_validate(cast(dict[str, Any], row))

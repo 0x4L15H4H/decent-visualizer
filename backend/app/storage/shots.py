@@ -50,8 +50,7 @@ class ShotStorage:
 
     @staticmethod
     def _to_model(row: JSON) -> ShotUpload:
-        record = cast(dict[str, Any], row)
-        return ShotUpload.model_validate({k: v for k, v in record.items() if k != "created_at"})
+        return ShotUpload.model_validate(cast(dict[str, Any], row))
 
     @staticmethod
     def _to_summary(row: JSON) -> ShotSummary:

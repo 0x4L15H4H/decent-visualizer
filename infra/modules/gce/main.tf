@@ -43,7 +43,14 @@ resource "google_compute_instance" "app" {
   }
 
   service_account {
-    scopes = ["cloud-platform"]
+    # Least privilege: the VM only needs to ship logs/metrics. Standard GCE
+    # metrics (CPU/disk/network) are free and need no scope; these cover the
+    # Ops Agent's logging + agent metrics. Everything else (Supabase,
+    # Cloudflare) is off-GCP and needs no GCP credentials.
+    scopes = [
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring.write",
+    ]
   }
 
   allow_stopping_for_update = true
