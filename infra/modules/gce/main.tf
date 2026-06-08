@@ -35,9 +35,6 @@ resource "google_compute_instance" "app" {
   metadata = {
     startup-script = templatefile("${path.module}/startup.sh", {
       name              = var.name
-      supabase_url      = var.supabase_url
-      supabase_key      = var.supabase_service_key
-      cors_origin       = var.cors_origin
       cloudflared_token = var.cloudflared_token
     })
   }

@@ -69,11 +69,18 @@ deploy_backend() {
   echo "→ Syncing docker-compose.yml..."
   scp_to_vm "$ROOT_DIR/docker-compose.yml" "/opt/app/docker-compose.yml"
 
+  echo "→ Rendering backend .env from tofu output..."
+  local env_file
+  env_file="$(mktemp -d)/.env"
+  tofu -chdir="$INFRA_DIR" output -json backend_env \
+    | jq -r 'to_entries[] | "\(.key)=\(.value)"' > "$env_file"
+  scp_to_vm "$env_file" "/opt/app/backend/.env"
+
   echo "→ Loading image and restarting..."
   ssh_vm bash -s <<'REMOTE'
 cd /opt/app
 docker load < /tmp/backend-image.tar.gz
-docker compose up -d --build --remove-orphans
+docker compose up -d --remove-orphans
 docker image prune -f
 rm -f /tmp/backend-image.tar.gz
 REMOTE

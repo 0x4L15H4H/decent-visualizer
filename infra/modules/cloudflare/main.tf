@@ -1,3 +1,12 @@
+terraform {
+  required_providers {
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 4.0"
+    }
+  }
+}
+
 locals {
   api_url = "https://${var.api_subdomain}.${var.domain}"
 }
@@ -5,8 +14,9 @@ locals {
 # ── Pages project ─────────────────────────────────────────────────────
 
 resource "cloudflare_pages_project" "frontend" {
-  account_id = var.account_id
-  name       = var.project_name
+  account_id        = var.account_id
+  name              = var.project_name
+  production_branch = "main"
 }
 
 # ── Cloudflare Tunnel for the backend API ─────────────────────────────
@@ -19,7 +29,7 @@ resource "random_id" "tunnel_secret" {
   byte_length = 32
 }
 
-resource "cloudflare_tunnel" "api" {
+resource "cloudflare_zero_trust_tunnel_cloudflared" "api" {
   account_id = var.account_id
   name       = "${var.project_name}-api"
   secret     = random_id.tunnel_secret.b64_std
@@ -27,9 +37,9 @@ resource "cloudflare_tunnel" "api" {
 }
 
 # Ingress: route the API hostname to the backend listening on the VM's loopback.
-resource "cloudflare_tunnel_config" "api" {
+resource "cloudflare_zero_trust_tunnel_cloudflared_config" "api" {
   account_id = var.account_id
-  tunnel_id  = cloudflare_tunnel.api.id
+  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.api.id
 
   config {
     ingress_rule {
@@ -44,22 +54,24 @@ resource "cloudflare_tunnel_config" "api" {
 
 # Backend API: api.example.com → tunnel (proxied CNAME, free HTTPS)
 resource "cloudflare_record" "api" {
-  zone_id = var.zone_id
-  name    = var.api_subdomain
-  type    = "CNAME"
-  content = "${cloudflare_tunnel.api.id}.cfargotunnel.com"
-  proxied = true
-  ttl     = 1 # automatic
+  zone_id          = var.zone_id
+  name             = var.api_subdomain
+  type             = "CNAME"
+  content          = "${cloudflare_zero_trust_tunnel_cloudflared.api.id}.cfargotunnel.com"
+  proxied          = true
+  ttl              = 1 # automatic
+  allow_overwrite  = true
 }
 
 # Frontend: www.example.com → Cloudflare Pages CNAME (proxied for cert)
 resource "cloudflare_record" "www" {
-  zone_id = var.zone_id
-  name    = "www"
-  type    = "CNAME"
-  content = cloudflare_pages_project.frontend.subdomain
-  proxied = true
-  ttl     = 1
+  zone_id         = var.zone_id
+  name            = "www"
+  type            = "CNAME"
+  content         = cloudflare_pages_project.frontend.subdomain
+  proxied         = true
+  ttl             = 1
+  allow_overwrite = true
 }
 
 # Link www custom domain to the Pages project (triggers cert provisioning)

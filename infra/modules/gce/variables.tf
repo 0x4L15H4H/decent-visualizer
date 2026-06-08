@@ -30,22 +30,6 @@ variable "disk_size_gb" {
   default     = 30
 }
 
-variable "supabase_url" {
-  description = "Supabase REST API URL"
-  type        = string
-}
-
-variable "supabase_service_key" {
-  description = "Supabase service role key"
-  type        = string
-  sensitive   = true
-}
-
-variable "cors_origin" {
-  description = "Comma-separated CORS allow-list for the backend"
-  type        = string
-}
-
 variable "cloudflared_token" {
   description = "Cloudflare Tunnel token; cloudflared runs on the VM to expose the backend without an open port"
   type        = string

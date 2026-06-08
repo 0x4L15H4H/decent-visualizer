@@ -19,8 +19,3 @@ variable "db_password" {
   sensitive   = true
 }
 
-variable "instance_size" {
-  description = "Compute instance size"
-  type        = string
-  default     = "micro"
-}

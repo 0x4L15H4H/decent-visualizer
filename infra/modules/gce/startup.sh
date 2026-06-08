@@ -5,9 +5,6 @@
 set -euo pipefail
 
 NAME="${name}"
-SUPABASE_URL="${supabase_url}"
-SUPABASE_SERVICE_KEY="${supabase_key}"
-CORS_ORIGIN="${cors_origin}"
 CLOUDFLARED_TOKEN="${cloudflared_token}"
 
 APP_DIR="/opt/app"
@@ -46,16 +43,7 @@ useradd --system --create-home --shell /bin/bash --groups docker appuser 2>/dev/
 mkdir -p "$APP_DIR/backend"
 chown -R appuser:appuser "$APP_DIR"
 
-# ── Backend .env (written by Terraform; deploy script skips it) ───────
-
-log "Writing backend .env..."
-cat > "$APP_DIR/backend/.env" <<ENV
-SUPABASE_URL=$SUPABASE_URL
-SUPABASE_SERVICE_KEY=$SUPABASE_SERVICE_KEY
-CORS_ORIGINS=$CORS_ORIGIN
-ENV
-chown appuser:appuser "$APP_DIR/backend/.env"
-chmod 600 "$APP_DIR/backend/.env"
+# The backend .env is rendered from `tofu output` and shipped at deploy time.
 
 # ── Cloudflare Tunnel (cloudflared) ─────────────────────────────────────
 # Exposes the backend (bound to localhost) to Cloudflare's edge over an

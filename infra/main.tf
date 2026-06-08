@@ -1,3 +1,29 @@
+# ── Terraform state bucket ────────────────────────────────────────────
+# The bucket is pre-created by the GCP setup script so the GCS backend works
+# on the very first `tofu init`. The import block below adopts it into state
+# automatically on the first apply; it's a no-op once the resource is managed.
+
+import {
+  to = google_storage_bucket.tfstate
+  id = "decent-visualizer-tfstate"
+}
+
+resource "google_storage_bucket" "tfstate" {
+  project                     = var.gcp_project_id
+  name                        = "decent-visualizer-tfstate"
+  location                    = "US"
+  uniform_bucket_level_access = true
+  versioning {
+    enabled = true
+  }
+}
+
+resource "google_storage_bucket_iam_member" "tfstate_deployer" {
+  bucket = google_storage_bucket.tfstate.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${var.gcp_service_account}"
+}
+
 locals {
   # Explicit CORS allow-list (credentialed CORS forbids a wildcard).
   cors_origin = join(",", [
@@ -9,14 +35,20 @@ locals {
 
 # ── Supabase ───────────────────────────────────────────────────────────
 
+# Generated, not stored externally: only tofu consumes it (the backend uses the
+# service-role key). Retrieve with `tofu output -raw supabase_db_password`.
+resource "random_password" "supabase_db" {
+  length           = 32
+  override_special = "!#$%&*()-_=+"
+}
+
 module "supabase" {
   source = "./modules/supabase"
 
-  org_id        = var.supabase_org_id
-  name          = var.project_name
-  db_region     = var.supabase_db_region
-  db_password   = var.supabase_db_password
-  instance_size = var.supabase_instance_size
+  org_id      = var.supabase_org_id
+  name        = var.project_name
+  db_region   = var.supabase_db_region
+  db_password = random_password.supabase_db.result
 }
 
 # ── GCE Backend (API) ────────────────────────────────────────────
@@ -31,10 +63,7 @@ module "gce" {
   machine_type = var.vm_machine_type
   disk_size_gb = var.vm_boot_disk_size_gb
 
-  supabase_url         = module.supabase.api_url
-  supabase_service_key = module.supabase.service_role_key
-  cors_origin          = local.cors_origin
-  cloudflared_token    = module.cloudflare.tunnel_token
+  cloudflared_token = module.cloudflare.tunnel_token
 }
 
 # ── Cloudflare Pages + DNS + Tunnel ───────────────────────────────────

@@ -6,7 +6,7 @@
 
 services:
   backend:
-    build: ./backend
+    image: decent-visualizer-backend:latest
     # Bound to loopback only — reached via the Cloudflare Tunnel (cloudflared
     # runs on the host and connects to localhost:80). No public exposure.
     ports:

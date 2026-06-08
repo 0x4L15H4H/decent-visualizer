@@ -1,5 +1,10 @@
 # ── GCP ────────────────────────────────────────────────────────────────
 
+variable "gcp_service_account" {
+  description = "Email of the GCP service account used by GitHub Actions. Needs storage.objectAdmin permissions."
+  type        = string
+}
+
 variable "gcp_project_id" {
   description = "GCP project ID"
   type        = string
@@ -58,22 +63,6 @@ variable "supabase_db_region" {
   default     = "us-east-1"
 }
 
-variable "supabase_db_password" {
-  description = "Database password for the Supabase project"
-  type        = string
-  sensitive   = true
-}
-
-variable "supabase_instance_size" {
-  description = "Supabase compute instance size (nano = 0.25 CPU, micro = 0.5 CPU, small = 1 CPU, medium = 2 CPU)"
-  type        = string
-  default     = "nano"
-
-  validation {
-    condition     = contains(["nano", "micro", "small", "medium", "large", "xlarge"], var.supabase_instance_size)
-    error_message = "Instance size must be one of: nano, micro, small, medium, large, xlarge."
-  }
-}
 
 # ── Cloudflare ─────────────────────────────────────────────────────────
 

@@ -4,3 +4,6 @@
 *.tfstate.backup
 .terraform/
 
+# Generated from config.env + Infisical secrets
+terraform.tfvars.json
+

@@ -20,11 +20,10 @@ terraform {
     }
   }
 
-  # Optional: use GCS to store state remotely (recommended for teams)
-  # backend "gcs" {
-  #   bucket = "<your-state-bucket>"
-  #   prefix = "decent-visualizer"
-  # }
+  backend "gcs" {
+    bucket = "decent-visualizer-tfstate"
+    prefix = "decent-visualizer"
+  }
 }
 
 provider "google" {

@@ -42,3 +42,19 @@ output "supabase_dashboard_url" {
   description = "Supabase dashboard URL for the project"
   value       = "https://supabase.com/dashboard/project/${module.supabase.project_ref}"
 }
+
+output "supabase_db_password" {
+  description = "Generated Postgres password for the Supabase project"
+  sensitive   = true
+  value       = random_password.supabase_db.result
+}
+
+output "backend_environment" {
+  description = "Runtime environment variables for the backend container"
+  sensitive   = true
+  value = {
+    SUPABASE_URL         = module.supabase.api_url
+    SUPABASE_SERVICE_KEY = module.supabase.service_role_key
+    CORS_ORIGINS         = local.cors_origin
+  }
+}

@@ -1,0 +1,7 @@
+name: Load config
+description: Export non-secret config.env values into the job environment.
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: grep -vE '^[[:space:]]*(#|$)' config.env >> "$GITHUB_ENV"
