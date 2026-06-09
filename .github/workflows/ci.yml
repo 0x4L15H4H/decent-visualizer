@@ -1,14 +1,8 @@
 name: CI
 
 on:
-  workflow_dispatch:
-    inputs:
-      target:
-        description: "What to deploy"
-        required: true
-        default: "all"
-        type: choice
-        options: [all, infra, backend, frontend]
+  push:
+    branches: [main]
 
 permissions:
   id-token: write
@@ -19,6 +13,7 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
+      infra: ${{ steps.filter.outputs.infra }}
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
     steps:
@@ -27,11 +22,16 @@ jobs:
         id: filter
         with:
           filters: |
+            infra:
+              - infra/**
+              - config.env
             backend:
               - backend/**
               - docker-compose.yml
+              - config.env
             frontend:
               - frontend/**
+              - config.env
 
   test:
     name: Lint & test
@@ -73,7 +73,8 @@ jobs:
 
   infra:
     name: Infra
-    needs: test
+    needs: [changes, test]
+    if: ${{ needs.changes.outputs.infra == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -125,10 +126,8 @@ jobs:
 
   backend:
     name: Deploy backend
-    needs: [changes, infra]
-    if: |
-      needs.changes.outputs.backend == 'true' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'backend'))
+    needs: [changes, test, infra]
+    if: ${{ always() && needs.test.result == 'success' && needs.infra.result != 'failure' && needs.infra.result != 'cancelled' && needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -191,10 +190,8 @@ jobs:
 
   frontend:
     name: Deploy frontend
-    needs: [changes, infra]
-    if: |
-      needs.changes.outputs.frontend == 'true' ||
-      (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'frontend'))
+    needs: [changes, test, infra]
+    if: ${{ always() && needs.test.result == 'success' && needs.infra.result != 'failure' && needs.infra.result != 'cancelled' && needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
