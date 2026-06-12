@@ -51,12 +51,6 @@ variable "supabase_org_id" {
   type        = string
 }
 
-variable "supabase_admin_token" {
-  description = "Supabase PAT for Terraform (create at supabase.com/dashboard/account/tokens)"
-  type        = string
-  sensitive   = true
-}
-
 variable "supabase_db_region" {
   description = "Supabase database region (e.g. us-east-1, eu-west-1)"
   type        = string
@@ -66,12 +60,6 @@ variable "supabase_db_region" {
 
 # ── Cloudflare ─────────────────────────────────────────────────────────
 
-variable "cloudflare_api_token" {
-  description = "Cloudflare API token with Pages + DNS Edit permission. Create at dash.cloudflare.com/profile/api-tokens."
-  type        = string
-  sensitive   = true
-}
-
 variable "cloudflare_account_id" {
   description = "Cloudflare account ID (visible at dash.cloudflare.com sidebar or in the URL)"
   type        = string
@@ -79,6 +67,11 @@ variable "cloudflare_account_id" {
 
 variable "cloudflare_zone_id" {
   description = "Cloudflare zone ID for the domain (from dash.cloudflare.com → domain → Overview → right sidebar)."
+  type        = string
+}
+
+variable "cloudflare_pages_project" {
+  description = "Cloudflare Pages project name, which becomes <name>.pages.dev (globally unique)."
   type        = string
 }
 
@@ -99,4 +92,16 @@ variable "project_slug" {
   description = "URL-safe project slug used for resource naming and the Pages site (<slug>.pages.dev)"
   type        = string
   default     = "decent-visualizer"
+}
+
+# ── Infisical ──────────────────────────────────────────────────────────
+
+variable "infisical_deploy_identity_id" {
+  description = "Infisical deploy/CI machine identity ID. Used by the Terraform provider (OIDC auth) to write backend secrets, and by CI's secrets-action to read deploy secrets."
+  type        = string
+}
+
+variable "infisical_project_id" {
+  description = "Infisical project (workspace) ID that holds the backend secrets, written to /backend in the prod environment."
+  type        = string
 }

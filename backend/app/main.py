@@ -9,15 +9,9 @@ settings = get_settings()
 
 app = FastAPI()
 
-# Parse the comma-separated origin list. Credentialed CORS cannot use a
-# wildcard, so an explicit, non-empty list is required.
-allow_origins = [o.strip() for o in settings.cors_origins.split(",") if o.strip()]
-if not allow_origins:
-    raise RuntimeError("CORS_ORIGINS must list at least one explicit origin")
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

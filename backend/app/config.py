@@ -6,15 +6,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=".env",
+        env_file=("../config.env", "config.env", ".env"),
         env_file_encoding="utf-8",
+        extra="ignore",
     )
     supabase_url: str
     supabase_service_key: str
-    # Comma-separated list of allowed origins. Required — credentialed CORS
-    # cannot use a wildcard, so an explicit list must always be provided.
-    # Example: "https://example.com,https://www.example.com"
-    cors_origins: str
+    domain: str
+    cloudflare_pages_project: str
+
+    @property
+    def cors_origins(self) -> list[str]:
+        # Mirror the infra CORS allow-list. Credentialed CORS forbids a
+        # wildcard, so the origins are listed explicitly.
+        return [
+            f"https://{self.domain}",
+            f"https://www.{self.domain}",
+            f"https://{self.cloudflare_pages_project}.pages.dev",
+        ]
 
 
 @lru_cache

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.8"
+  required_version = ">= 1.12"
 
   required_providers {
     google = {
@@ -18,6 +18,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    infisical = {
+      source  = "Infisical/infisical"
+      version = "~> 0.16"
+    }
   }
 
   backend "gcs" {
@@ -33,9 +37,18 @@ provider "google" {
 }
 
 provider "supabase" {
-  access_token = var.supabase_admin_token
+  access_token = ephemeral.infisical_secret.supabase_admin_token.value
 }
 
 provider "cloudflare" {
-  api_token = var.cloudflare_api_token
+  api_token = ephemeral.infisical_secret.cloudflare_api_token.value
+}
+
+provider "infisical" {
+  host = "https://app.infisical.com"
+  auth = {
+    oidc = {
+      identity_id = var.infisical_deploy_identity_id
+    }
+  }
 }

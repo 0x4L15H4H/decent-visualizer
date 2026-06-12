@@ -1,4 +1,4 @@
-name: CI
+name: Deploy
 
 on:
   push:
@@ -82,16 +82,6 @@ jobs:
 
       - uses: ./.github/actions/load-config
 
-      - name: Load secrets
-        uses: Infisical/secrets-action@v1.0.16
-        with:
-          identity-id: ${{ env.infisical_identity_id }}
-          method: oidc
-          env-slug: "prod"
-          project-slug: "decent-visualizer"
-          export-type: file
-          file-output-path: /secrets.env
-
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.gcp_workflow_identity_provider }}
@@ -99,18 +89,41 @@ jobs:
 
       - uses: opentofu/setup-opentofu@v1
         with:
-          tofu_version: "1.8"
+          tofu_version: "1.12"
 
       - name: Generate terraform.tfvars.json
         working-directory: infra
         run: |
-          keep=$(grep -oE '^variable "[^"]+"' variables.tf | sed -E 's/.*"(.*)"/\1/' \
-            | jq -R . | jq -cs 'map({(.):true})|add')
-          npx -y @dotenvx/dotenvx get --format json \
-            -f ../config.env -f "$GITHUB_WORKSPACE/secrets.env" \
-            | jq --argjson keep "$keep" \
-              'with_entries(.key |= ascii_downcase) | with_entries(select($keep[.key]))' \
-            > terraform.tfvars.json
+          # config.env holds the non-secret variables, with keys that already
+          # match the names in variables.tf. Secrets are read straight from
+          # Infisical by the providers, so they don't appear here.
+          npx -y @dotenvx/dotenvx get --format json -f ../config.env \
+            > "$RUNNER_TEMP/config.json"
+
+          # Collect the names of the variables declared in variables.tf.
+          grep -oE '^variable "[^"]+"' variables.tf \
+            | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
+
+          # Turn that list into a lookup object, e.g. {"domain": true, ...}.
+          declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
+
+          # Keep only the keys that are declared variables. Terraform warns about
+          # any tfvars key it doesn't recognize, so this drops the config.env
+          # entries (e.g. infisical_project_slug) that aren't variables.
+          jq --argjson declared "$declared" \
+            'with_entries(select($declared[.key]))' \
+            "$RUNNER_TEMP/config.json" > terraform.tfvars.json
+
+      - name: Mint Infisical OIDC token for Terraform
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // The Infisical Terraform provider authenticates with a GitHub OIDC
+            // token read from INFISICAL_AUTH_JWT. Its audience must be the GitHub
+            // owner URL, matching the machine identity's OIDC configuration.
+            const token = await core.getIDToken(`https://github.com/${context.repo.owner}`)
+            core.setSecret(token)
+            core.exportVariable('INFISICAL_AUTH_JWT', token)
 
       - name: Init
         run: tofu init
@@ -141,17 +154,6 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - uses: opentofu/setup-opentofu@v1
-        with:
-          tofu_version: "1.8"
-
-      - name: Render backend env from tofu output
-        working-directory: infra
-        run: |
-          tofu init
-          tofu output -json backend_environment \
-            | jq -r 'to_entries[] | "\(.key)=\(.value)"' > "$GITHUB_WORKSPACE/backend.env"
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -160,9 +162,9 @@ jobs:
           docker build \
             --platform linux/amd64 \
             -t decent-visualizer-backend \
-            -f backend/Dockerfile backend
+            -f backend/Dockerfile .
 
-      - name: Upload image and env
+      - name: Upload image
         run: |
           ARCHIVE=$(mktemp -d)/backend-image.tar.gz
           docker save decent-visualizer-backend | gzip > "$ARCHIVE"
@@ -172,9 +174,6 @@ jobs:
           gcloud compute scp --quiet \
             --project="$gcp_project_id" --zone="$gcp_zone" \
             docker-compose.yml "appuser@${project_slug}:/opt/app/docker-compose.yml"
-          gcloud compute scp --quiet \
-            --project="$gcp_project_id" --zone="$gcp_zone" \
-            backend.env "appuser@${project_slug}:/opt/app/backend/.env"
 
       - name: Reload on VM
         run: |
@@ -200,10 +199,11 @@ jobs:
 
       - uses: Infisical/secrets-action@v1.0.16
         with:
-          identity-id: ${{ env.infisical_identity_id }}
+          identity-id: ${{ env.infisical_deploy_identity_id }}
           method: oidc
           env-slug: "prod"
-          project-slug: "decent-visualizer"
+          project-slug: ${{ env.infisical_project_slug }}
+          secret-path: "/deploy"
           export-type: env
 
       - uses: pnpm/action-setup@v4
@@ -231,4 +231,4 @@ jobs:
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ env.cloudflare_account_id }}
           CLOUDFLARE_API_TOKEN: ${{ env.cloudflare_api_token }}
-        run: npx wrangler pages deploy dist --project-name="${{ env.project_slug }}" --branch=main
+        run: npx wrangler pages deploy dist --project-name="${{ env.cloudflare_pages_project }}" --branch=main

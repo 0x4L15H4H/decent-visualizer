@@ -24,15 +24,6 @@ resource "google_storage_bucket_iam_member" "tfstate_deployer" {
   member = "serviceAccount:${var.gcp_service_account}"
 }
 
-locals {
-  # Explicit CORS allow-list (credentialed CORS forbids a wildcard).
-  cors_origin = join(",", [
-    "https://${var.domain}",
-    "https://www.${var.domain}",
-    "https://${var.project_slug}.pages.dev",
-  ])
-}
-
 # ── Supabase ───────────────────────────────────────────────────────────
 
 # Generated, not stored externally: only tofu consumes it (the backend uses the
@@ -74,5 +65,5 @@ module "cloudflare" {
   account_id   = var.cloudflare_account_id
   zone_id      = var.cloudflare_zone_id
   domain       = var.domain
-  project_name = var.project_slug
+  project_name = var.cloudflare_pages_project
 }
