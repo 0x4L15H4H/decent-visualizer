@@ -24,14 +24,14 @@ jobs:
           filters: |
             infra:
               - infra/**
-              - config.env
+              - config/**
             backend:
               - backend/**
               - docker-compose.yml
-              - config.env
+              - config/**
             frontend:
               - frontend/**
-              - config.env
+              - config/**
 
   test:
     name: Lint & test

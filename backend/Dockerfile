@@ -6,7 +6,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Infisical CLI: the entrypoint uses it to pull secrets at runtime via the VM's
 # GCE instance identity, so no static credentials are baked in or shipped.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl bash ca-certificates \
+  && apt-get install -y --no-install-recommends curl bash ca-certificates jq \
   && curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | bash \
   && apt-get update \
   && apt-get install -y --no-install-recommends infisical \
@@ -20,7 +20,9 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy application logic into the image.
 COPY backend/ ./
-COPY config.env ./config.env
+COPY config/ ./config/
+
+ENV APP_ENV=prod
 
 RUN chmod +x /app/docker-entrypoint.sh
 

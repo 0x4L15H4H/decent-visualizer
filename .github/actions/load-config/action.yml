@@ -1,28 +1,23 @@
 name: Load config
 description: >-
-  Export config.env into the job environment. When tfvars is true, also render
-  the non-secret Terraform variables from it into infra/terraform.tfvars.json.
+  Export config/infra.json into the job environment. When tfvars is true, also
+  render the non-secret Terraform variables from it into infra/terraform.tfvars.json.
 inputs:
   tfvars:
-    description: When 'true', render infra/terraform.tfvars.json from config.env.
+    description: When 'true', render infra/terraform.tfvars.json from config/infra.json.
     default: "false"
 runs:
   using: composite
   steps:
-    # Export config.env into the job environment.
     - shell: bash
-      run: grep -vE '^[[:space:]]*(#|$)' config.env >> "$GITHUB_ENV"
+      run: jq -r 'to_entries[] | "\(.key)=\(.value)"' config/infra.json >> "$GITHUB_ENV"
 
-    # Render the declared variables to tfvars. Secrets come from Infisical, and
-    # undeclared config keys are dropped so Terraform doesn't warn.
     - if: ${{ inputs.tfvars == 'true' }}
       shell: bash
       run: |
-        npx -y @dotenvx/dotenvx get --format json -f config.env \
-          > "$RUNNER_TEMP/config.json"
         grep -oE '^variable "[^"]+"' infra/variables.tf \
           | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
         declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
         jq --argjson declared "$declared" \
           'with_entries(select($declared[.key]))' \
-          "$RUNNER_TEMP/config.json" > infra/terraform.tfvars.json
+          config/infra.json > infra/terraform.tfvars.json
