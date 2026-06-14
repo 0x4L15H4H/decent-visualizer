@@ -10,14 +10,20 @@ runs:
   using: composite
   steps:
     - shell: bash
-      run: jq -r 'to_entries[] | "\(.key)=\(.value)"' config/infra.json >> "$GITHUB_ENV"
+      run: |
+        jq -r '
+          paths(scalars) as $p |
+          "\([$p[] | tostring] | join("_"))=\(getpath($p))"
+        ' config/infra.json >> "$GITHUB_ENV"
 
     - if: ${{ inputs.tfvars == 'true' }}
       shell: bash
       run: |
+        jq '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' \
+          config/infra.json > "$RUNNER_TEMP/flat.json"
         grep -oE '^variable "[^"]+"' infra/variables.tf \
           | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
         declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
         jq --argjson declared "$declared" \
           'with_entries(select($declared[.key]))' \
-          config/infra.json > infra/terraform.tfvars.json
+          "$RUNNER_TEMP/flat.json" > infra/terraform.tfvars.json

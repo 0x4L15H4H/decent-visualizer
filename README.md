@@ -47,7 +47,7 @@ Run the one-time setup script to enable APIs, create the Workload Identity pool,
 bash scripts/gcp-setup.sh
 ```
 
-The script prints `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` at the end. Put them into `config.env` as `gcp_workflow_identity_provider` and `gcp_service_account` (step 3).
+The script prints `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` at the end. Put them into `config/infra.json` under the `gcp` section as `workflow_identity_provider` and `service_account` (step 3).
 
 ### 2. Infisical
 
@@ -64,38 +64,42 @@ Secrets live in Infisical, split into two folders under the `prod` environment:
 
 Then create two machine identities under Organization Settings → Access Control → Identities:
 
-| Identity | Auth method | Permissions | config.env key |
+| Identity | Auth method | Permissions | infra.json path |
 |---|---|---|---|
-| Deploy/CI | **OIDC**. Issuer `https://token.actions.githubusercontent.com`, audience `https://github.com/YOUR_GITHUB_ORG`. | Read `/deploy`, create/edit `/backend`. | `infisical_deploy_identity_id` |
-| Backend | **GCP ID Token**. Allowed service account = the VM's Compute Engine service account (`<project-number>-compute@developer.gserviceaccount.com`), allowed project = your GCP project, allowed zone = your `gcp_zone`. | Read `/backend`. | `infisical_backend_identity_id` |
+| Deploy/CI | **OIDC**. Issuer `https://token.actions.githubusercontent.com`, audience `https://github.com/YOUR_GITHUB_ORG`. | Read `/deploy`, create/edit `/backend`. | `infisical.deploy_identity_id` |
+| Backend | **GCP ID Token**. Allowed service account = the VM's Compute Engine service account (`<project-number>-compute@developer.gserviceaccount.com`), allowed project = your GCP project, allowed zone = your `gcp_zone`. | Read `/backend`. | `infisical.backend_identity_id` |
 
-The deploy identity does double duty: CI's secrets-action reads `/deploy` with it, and the Terraform provider writes `/backend` with it over OIDC. Copy each identity's ID, plus the project's ID and slug (Project Settings → Copy project slug), into `config.env` (next section).
+The deploy identity does double duty: CI's secrets-action reads `/deploy` with it, and the Terraform provider writes `/backend` with it over OIDC. Copy each identity's ID, plus the project's ID and slug (Project Settings -> Copy project slug), into `config/infra.json` (next section).
 
-### 3. Config (`config.env`)
+### 3. Config
 
-All non-secret configuration lives in `config.env`, which is committed. CI loads it into the job environment and merges it with the `/deploy` secrets to generate `terraform.tfvars.json`. There are no GitHub Actions secrets: GCP and Infisical both authenticate over OIDC. Edit `config.env` with your values:
+All non-secret configuration lives in committed JSON files under `config/`. CI flattens `config/infra.json` into the job environment and generates `terraform.tfvars.json` from it. There are no GitHub Actions secrets: GCP and Infisical both authenticate over OIDC.
 
-| Variable | Description |
-|---|---|
-| `gcp_project_id` | GCP project ID. |
-| `gcp_region` | GCP region. Must be `us-east1`, `us-central1`, or `us-west1` (Always Free). |
-| `gcp_zone` | GCP zone, e.g. `us-central1-a`. |
-| `gcp_service_account` | Printed by `gcp-setup.sh`. |
-| `gcp_workflow_identity_provider` | Printed by `gcp-setup.sh`. |
-| `vm_machine_type` | `e2-micro` (free), `e2-small`, or `e2-medium`. |
-| `vm_boot_disk_size_gb` | Boot disk size in GB. Always Free allows up to 30 GB. |
-| `supabase_org_id` | Supabase org slug from the dashboard URL. |
-| `supabase_db_region` | Supabase region, e.g. `us-east-2`. |
-| `cloudflare_account_id` | Cloudflare account ID from the dashboard sidebar. |
-| `cloudflare_zone_id` | Zone ID from the domain's Overview page. |
-| `cloudflare_pages_project` | Cloudflare Pages project name; becomes `<name>.pages.dev` (globally unique). Change it on a fork to avoid a collision. |
-| `domain` | Root domain, e.g. `example.com`. The frontend is served at `www.<domain>` and the API at `api.<domain>`. |
-| `infisical_project_id` | Infisical project (workspace) UUID. |
-| `infisical_project_slug` | Infisical project slug. |
-| `infisical_deploy_identity_id` | Deploy/CI machine identity ID (from step 2). |
-| `infisical_backend_identity_id` | Backend machine identity ID (from step 2). |
-| `project_name` | Human-readable project name (Supabase display name). |
-| `project_slug` | URL-safe slug for resource naming. |
+**`config/infra.json`** -- infrastructure and deployment config, organized by service:
+
+| Section | Key | Description |
+|---|---|---|
+| `gcp` | `project_id` | GCP project ID. |
+| `gcp` | `region` | GCP region. Must be `us-east1`, `us-central1`, or `us-west1` (Always Free). |
+| `gcp` | `zone` | GCP zone, e.g. `us-central1-a`. |
+| `gcp` | `service_account` | Printed by `gcp-setup.sh`. |
+| `gcp` | `workflow_identity_provider` | Printed by `gcp-setup.sh`. |
+| `vm` | `machine_type` | `e2-micro` (free), `e2-small`, or `e2-medium`. |
+| `vm` | `boot_disk_size_gb` | Boot disk size in GB. Always Free allows up to 30 GB. |
+| `supabase` | `org_id` | Supabase org slug from the dashboard URL. |
+| `supabase` | `db_region` | Supabase region, e.g. `us-east-2`. |
+| `cloudflare` | `account_id` | Cloudflare account ID from the dashboard sidebar. |
+| `cloudflare` | `zone_id` | Zone ID from the domain's Overview page. |
+| `cloudflare` | `pages_project` | Cloudflare Pages project name; becomes `<name>.pages.dev` (globally unique). |
+| `infisical` | `project_id` | Infisical project (workspace) UUID. |
+| `infisical` | `project_slug` | Infisical project slug. |
+| `infisical` | `deploy_identity_id` | Deploy/CI machine identity ID (from step 2). |
+| `infisical` | `backend_identity_id` | Backend machine identity ID (from step 2). |
+| *(top-level)* | `domain` | Root domain, e.g. `example.com`. Frontend at `www.<domain>`, API at `api.<domain>`. |
+| *(top-level)* | `project_name` | Human-readable project name (Supabase display name). |
+| *(top-level)* | `project_slug` | URL-safe slug for resource naming. |
+
+**`config/prod.json`** -- production backend app config (`domain`, `cloudflare_pages_project`), copied into the Docker image at build time. The backend uses these to derive CORS origins.
 
 ### 4. First deploy
 

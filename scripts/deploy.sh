@@ -27,7 +27,7 @@ GCP_PROJECT="$(tofu -chdir="$INFRA_DIR" output -raw gcp_project_id)"
 GCP_ZONE="$(tofu -chdir="$INFRA_DIR" output -raw gcp_zone)"
 VM_IP="$(tofu -chdir="$INFRA_DIR" output -raw vm_external_ip)"
 VM_NAME="$(jq -r '.project_slug' "$INFRA_CONFIG")"
-PAGES_PROJECT="$(jq -r '.cloudflare_pages_project' "$INFRA_CONFIG")"
+PAGES_PROJECT="$(jq -r '.cloudflare.pages_project' "$INFRA_CONFIG")"
 BACKEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw backend_url)"
 FRONTEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw frontend_url)"
 

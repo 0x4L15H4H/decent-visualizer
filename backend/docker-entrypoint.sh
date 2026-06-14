@@ -6,11 +6,11 @@ set -euo pipefail
 
 CONFIG_FILE=/app/config/infra.json
 
-project_id="$(jq -r '.infisical_project_id' "$CONFIG_FILE")"
-identity_id="$(jq -r '.infisical_backend_identity_id' "$CONFIG_FILE")"
+project_id="$(jq -r '.infisical.project_id' "$CONFIG_FILE")"
+identity_id="$(jq -r '.infisical.backend_identity_id' "$CONFIG_FILE")"
 
 if [[ -z "$project_id" || -z "$identity_id" ]]; then
-  echo "infisical_project_id and infisical_backend_identity_id must be set in config/infra.json" >&2
+  echo "infisical.project_id and infisical.backend_identity_id must be set in config/infra.json" >&2
   exit 1
 fi
 
