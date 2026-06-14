@@ -34,7 +34,7 @@ class ProdSettings(Settings):
 
 class DevSettings(Settings):
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=".env",
+        json_file="../config/dev.json",
         extra="ignore",
     )
 

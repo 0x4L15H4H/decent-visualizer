@@ -1,0 +1,4 @@
+{
+  "supabase_url": "https://your-project.supabase.co",
+  "supabase_service_key": "your-service-role-key"
+}

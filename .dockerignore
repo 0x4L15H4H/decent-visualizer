@@ -1,5 +1,5 @@
-# The backend image builds from the repo root (it needs config.env), so keep
-# everything except what the image needs out of the build context.
+# The backend image builds from the repo root, so keep everything except what
+# the image needs out of the build context.
 .git
 .github
 .claude

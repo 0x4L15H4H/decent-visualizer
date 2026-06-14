@@ -1,5 +1,6 @@
 # Environment
 .env
+config/dev.json
 
 # Editor
 .vscode/*
