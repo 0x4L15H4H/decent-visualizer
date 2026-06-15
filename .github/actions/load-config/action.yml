@@ -16,9 +16,11 @@ runs:
         flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/prod/infra.json)
         echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
-        # Export flat ci.json and prod/backend.json
-        jq -r 'to_entries[] | "\(.key)=\(.value)"' config/ci.json >> "$GITHUB_ENV"
-        jq -r 'to_entries[] | "\(.key)=\(.value)"' config/prod/backend.json >> "$GITHUB_ENV"
+        # Flatten nested prod/ci.json
+        jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/ci.json >> "$GITHUB_ENV"
+
+        # Flatten nested prod/backend.json
+        jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/backend.json >> "$GITHUB_ENV"
 
         # Write tfvars directly -- prod/infra.json keys match Terraform variables exactly
         if [[ "${{ inputs.tfvars }}" == "true" ]]; then

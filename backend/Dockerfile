@@ -21,7 +21,6 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Copy application logic into the image.
 COPY backend/ ./
 COPY config/prod/backend.json ./config.json
-COPY config/prod/infra.json ./config/infra.json
 
 ENV APP_ENV=prod
 

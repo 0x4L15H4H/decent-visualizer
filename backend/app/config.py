@@ -1,18 +1,22 @@
 import os
-from abc import ABC, abstractmethod
 from functools import lru_cache
-from typing import ClassVar
+from typing import ClassVar, override
 
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings, ABC):
+class CloudflareConfig(BaseModel):
+    pages_project: str
+
+
+class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
 
     @property
-    @abstractmethod
-    def cors_origins(self) -> list[str]: ...
+    def cors_origins(self) -> list[str]:
+        raise NotImplementedError
 
 
 class ProdSettings(Settings):
@@ -21,14 +25,15 @@ class ProdSettings(Settings):
         extra="ignore",
     )
     domain: str
-    cloudflare_pages_project: str
+    cloudflare: CloudflareConfig
 
     @property
+    @override
     def cors_origins(self) -> list[str]:
         return [
             f"https://{self.domain}",
             f"https://www.{self.domain}",
-            f"https://{self.cloudflare_pages_project}.pages.dev",
+            f"https://{self.cloudflare.pages_project}.pages.dev",
         ]
 
 
@@ -39,6 +44,7 @@ class DevSettings(Settings):
     )
 
     @property
+    @override
     def cors_origins(self) -> list[str]:
         return []
 

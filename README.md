@@ -67,7 +67,7 @@ Then create two machine identities under Organization Settings → Access Contro
 | Identity | Auth method | Permissions | Config location |
 |---|---|---|---|
 | Deploy/CI | **OIDC**. Issuer `https://token.actions.githubusercontent.com`, audience `https://github.com/YOUR_GITHUB_ORG`. | Read `/deploy`, create/edit `/backend`. | `infisical.deploy_identity_id` in `prod/infra.json` |
-| Backend | **GCP ID Token**. Allowed service account = the VM's Compute Engine service account (`<project-number>-compute@developer.gserviceaccount.com`), allowed project = your GCP project, allowed zone = your `gcp_zone`. | Read `/backend`. | `infisical_backend_identity_id` in `prod/backend.json` |
+| Backend | **GCP ID Token**. Allowed service account = the VM's Compute Engine service account (`<project-number>-compute@developer.gserviceaccount.com`), allowed project = your GCP project, allowed zone = your `gcp_zone`. | Read `/backend`. | `infisical.backend_identity_id` in `prod/backend.json` |
 
 The deploy identity does double duty: CI's secrets-action reads `/deploy` with it, and the Terraform provider writes `/backend` with it over OIDC.
 
@@ -90,15 +90,15 @@ All non-secret configuration lives in committed JSON files under `config/`, orga
 | `cloudflare` | `account_id` | Cloudflare account ID from the dashboard sidebar. |
 | `cloudflare` | `zone_id` | Zone ID from the domain's Overview page. |
 | `cloudflare` | `pages_project` | Cloudflare Pages project name; becomes `<name>.pages.dev` (globally unique). |
-| `infisical` | `project_id` | Infisical project (workspace) UUID. |
+| `infisical` | `deploy_project_id` | Infisical project (workspace) UUID. |
 | `infisical` | `deploy_identity_id` | Deploy/CI machine identity ID (from step 2). |
 | *(top-level)* | `domain` | Root domain, e.g. `example.com`. Frontend at `www.<domain>`, API at `api.<domain>`. |
 | *(top-level)* | `project_name` | Human-readable project name (Supabase display name). |
 | *(top-level)* | `project_slug` | URL-safe slug for resource naming. |
 
-**`config/prod/backend.json`** -- production backend app config (`domain`, `cloudflare_pages_project`, `infisical_backend_identity_id`). Copied into the Docker image at build time. The backend uses `domain` and `cloudflare_pages_project` to derive CORS origins; the docker-entrypoint reads `infisical_backend_identity_id` for secret fetching.
+**`config/prod/backend.json`** -- production backend app config, nested by service. The backend reads `domain` and `cloudflare.pages_project` to derive CORS origins; the docker-entrypoint reads `infisical.backend_project_id` and `infisical.backend_identity_id` for secret fetching. Copied into the Docker image at build time.
 
-**`config/ci.json`** -- CI-only values not needed by Terraform: `gcp_workflow_identity_provider` (GCP OIDC auth) and `infisical_project_slug` (secrets-action).
+**`config/prod/ci.json`** -- CI-only values not needed by Terraform, nested by service: `gcp.workflow_identity_provider` (GCP OIDC auth), `infisical.project_slug` (secrets-action), and `infisical.deploy_identity_id`.
 
 **`config/dev/backend.json`** -- local dev Supabase credentials (committed with well-known local defaults).
 

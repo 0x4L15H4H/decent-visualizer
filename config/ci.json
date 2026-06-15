@@ -1,4 +1,0 @@
-{
-  "gcp_workflow_identity_provider": "projects/669096378198/locations/global/workloadIdentityPools/github-pool/providers/github-provider",
-  "infisical_project_slug": "decent-visualizer"
-}
