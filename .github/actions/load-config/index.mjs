@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import { readFileSync, appendFileSync, writeFileSync } from "fs";
+import { resolve } from "path";
 
 function flatten(obj, prefix = "") {
   const result = {};
@@ -24,20 +24,14 @@ function parseDeclaredVars(variablesTf) {
   return vars;
 }
 
-const config = JSON.parse(
-  fs.readFileSync(path.resolve("config/infra.json"), "utf-8")
-);
+const config = JSON.parse(readFileSync(resolve("config/infra.json"), "utf-8"));
 const flat = flatten(config);
 
-const envFile = process.env.GITHUB_ENV;
 const lines = Object.entries(flat).map(([k, v]) => `${k}=${v}`);
-fs.appendFileSync(envFile, lines.join("\n") + "\n");
+appendFileSync(process.env.GITHUB_ENV, lines.join("\n") + "\n");
 
 if (process.env.INPUT_TFVARS === "true") {
-  const variablesTf = fs.readFileSync(
-    path.resolve("infra/variables.tf"),
-    "utf-8"
-  );
+  const variablesTf = readFileSync(resolve("infra/variables.tf"), "utf-8");
   const declared = parseDeclaredVars(variablesTf);
   const tfvars = {};
   for (const [key, value] of Object.entries(flat)) {
@@ -45,8 +39,8 @@ if (process.env.INPUT_TFVARS === "true") {
       tfvars[key] = value;
     }
   }
-  fs.writeFileSync(
-    path.resolve("infra/terraform.tfvars.json"),
+  writeFileSync(
+    resolve("infra/terraform.tfvars.json"),
     JSON.stringify(tfvars, null, 2) + "\n"
   );
 }
