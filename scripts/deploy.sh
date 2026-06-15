@@ -19,7 +19,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 INFRA_DIR="$ROOT_DIR/infra"
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
-INFRA_CONFIG="$ROOT_DIR/config/infra.json"
+INFRA_CONFIG="$ROOT_DIR/config/prod/infra.json"
 
 # ── Resolve infrastructure from Terraform outputs ──────────────────────
 

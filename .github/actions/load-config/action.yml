@@ -1,30 +1,26 @@
 name: Load config
 description: >-
-  Export config/infra.json into the job environment. When tfvars is true, also
-  render the non-secret Terraform variables from it into infra/terraform.tfvars.json.
+  Export config into the job environment. Loads prod/infra.json (flattened),
+  prod/backend.json, and ci.json. When tfvars is true, writes the flattened
+  infra config directly as infra/terraform.tfvars.json.
 inputs:
   tfvars:
-    description: When 'true', render infra/terraform.tfvars.json from config/infra.json.
+    description: When 'true', write infra/terraform.tfvars.json from prod/infra.json.
     default: "false"
 runs:
   using: composite
   steps:
-    # Flatten nested JSON (e.g. gcp.project_id -> gcp_project_id) and export
-    # as environment variables for subsequent workflow steps.
-    - id: flatten
-      shell: bash
+    - shell: bash
       run: |
-        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/infra.json)
-        echo "json=$flat" >> "$GITHUB_OUTPUT"
+        # Flatten nested prod/infra.json (e.g. gcp.project_id -> gcp_project_id)
+        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/prod/infra.json)
         echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
-    # Filter the flattened config to only the variables declared in
-    # variables.tf, then write infra/terraform.tfvars.json.
-    - if: ${{ inputs.tfvars == 'true' }}
-      shell: bash
-      run: |
-        grep -oE '^variable "[^"]+"' infra/variables.tf \
-          | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
-        declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
-        echo '${{ steps.flatten.outputs.json }}' | jq --argjson declared "$declared" \
-          'with_entries(select($declared[.key]))' > infra/terraform.tfvars.json
+        # Export flat ci.json and prod/backend.json
+        jq -r 'to_entries[] | "\(.key)=\(.value)"' config/ci.json >> "$GITHUB_ENV"
+        jq -r 'to_entries[] | "\(.key)=\(.value)"' config/prod/backend.json >> "$GITHUB_ENV"
+
+        # Write tfvars directly -- prod/infra.json keys match Terraform variables exactly
+        if [[ "${{ inputs.tfvars }}" == "true" ]]; then
+          echo "$flat" | jq '.' > infra/terraform.tfvars.json
+        fi

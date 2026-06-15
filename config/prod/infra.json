@@ -3,8 +3,7 @@
     "project_id": "decent-visualizer",
     "region": "us-central1",
     "zone": "us-central1-a",
-    "service_account": "terraform@decent-visualizer.iam.gserviceaccount.com",
-    "workflow_identity_provider": "projects/669096378198/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
+    "service_account": "terraform@decent-visualizer.iam.gserviceaccount.com"
   },
   "vm": {
     "machine_type": "e2-micro",
@@ -22,9 +21,7 @@
   "domain": "alishah.xyz",
   "infisical": {
     "project_id": "e13f5a2b-1efe-4352-88e5-46641e007383",
-    "project_slug": "decent-visualizer",
-    "deploy_identity_id": "9f56b963-0192-4521-b0ca-21f553bc20d8",
-    "backend_identity_id": "f3e83179-850b-48cd-b7da-a15f9bc49ef2"
+    "deploy_identity_id": "9f56b963-0192-4521-b0ca-21f553bc20d8"
   },
   "project_name": "Decent Visualizer",
   "project_slug": "decent-visualizer"
