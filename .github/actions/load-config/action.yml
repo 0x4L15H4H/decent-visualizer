@@ -7,20 +7,5 @@ inputs:
     description: When 'true', render infra/terraform.tfvars.json from config/infra.json.
     default: "false"
 runs:
-  using: composite
-  steps:
-    - id: flatten
-      shell: bash
-      run: |
-        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/infra.json)
-        echo "json=$flat" >> "$GITHUB_OUTPUT"
-        echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
-
-    - if: ${{ inputs.tfvars == 'true' }}
-      shell: bash
-      run: |
-        grep -oE '^variable "[^"]+"' infra/variables.tf \
-          | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
-        declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
-        echo '${{ steps.flatten.outputs.json }}' | jq --argjson declared "$declared" \
-          'with_entries(select($declared[.key]))' > infra/terraform.tfvars.json
+  using: node20
+  main: index.js
