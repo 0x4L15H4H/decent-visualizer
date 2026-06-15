@@ -3,7 +3,12 @@ from functools import lru_cache
 from typing import ClassVar, override
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    JsonConfigSettingsSource,
+    PydanticBaseSettingsSource,
+    SettingsConfigDict,
+)
 
 
 class CloudflareConfig(BaseModel):
@@ -13,6 +18,23 @@ class CloudflareConfig(BaseModel):
 class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (
+            init_settings,
+            env_settings,
+            dotenv_settings,
+            file_secret_settings,
+            JsonConfigSettingsSource(settings_cls),
+        )
 
     @property
     def cors_origins(self) -> list[str]:
