@@ -9,21 +9,18 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - id: flatten
+      shell: bash
       run: |
-        jq -r '
-          paths(scalars) as $p |
-          "\([$p[] | tostring] | join("_"))=\(getpath($p))"
-        ' config/infra.json >> "$GITHUB_ENV"
+        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/infra.json)
+        echo "json=$flat" >> "$GITHUB_OUTPUT"
+        echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
 
     - if: ${{ inputs.tfvars == 'true' }}
       shell: bash
       run: |
-        jq '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' \
-          config/infra.json > "$RUNNER_TEMP/flat.json"
         grep -oE '^variable "[^"]+"' infra/variables.tf \
           | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
         declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
-        jq --argjson declared "$declared" \
-          'with_entries(select($declared[.key]))' \
-          "$RUNNER_TEMP/flat.json" > infra/terraform.tfvars.json
+        echo '${{ steps.flatten.outputs.json }}' | jq --argjson declared "$declared" \
+          'with_entries(select($declared[.key]))' > infra/terraform.tfvars.json
