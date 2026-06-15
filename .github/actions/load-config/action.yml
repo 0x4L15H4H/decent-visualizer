@@ -1,28 +1,32 @@
 name: Load config
-description: >-
-  Export config into the job environment. Loads prod/infra.json (flattened),
-  prod/backend.json, and ci.json. When tfvars is true, writes the flattened
-  infra config directly as infra/terraform.tfvars.json.
+description: Export selected prod config files into the job environment as flattened key=value pairs.
 inputs:
-  tfvars:
-    description: When 'true', write infra/terraform.tfvars.json from prod/infra.json.
+  ci:
+    description: Load prod/ci.json.
+    default: "false"
+  infra:
+    description: Load prod/infra.json.
+    default: "false"
+  backend:
+    description: Load prod/backend.json.
     default: "false"
 runs:
   using: composite
   steps:
-    - shell: bash
+    - name: Load prod/infra.json
+      if: inputs.infra == 'true'
+      shell: bash
       run: |
-        # Flatten nested prod/infra.json (e.g. gcp.project_id -> gcp_project_id)
         flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/prod/infra.json)
         echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+        echo "$flat" | jq '.' > infra/terraform.tfvars.json
 
-        # Flatten nested prod/ci.json
-        jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/ci.json >> "$GITHUB_ENV"
+    - name: Load prod/ci.json
+      if: inputs.ci == 'true'
+      shell: bash
+      run: jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/ci.json >> "$GITHUB_ENV"
 
-        # Flatten nested prod/backend.json
-        jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/backend.json >> "$GITHUB_ENV"
-
-        # Write tfvars directly -- prod/infra.json keys match Terraform variables exactly
-        if [[ "${{ inputs.tfvars }}" == "true" ]]; then
-          echo "$flat" | jq '.' > infra/terraform.tfvars.json
-        fi
+    - name: Load prod/backend.json
+      if: inputs.backend == 'true'
+      shell: bash
+      run: jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/backend.json >> "$GITHUB_ENV"
