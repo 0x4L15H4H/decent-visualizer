@@ -7,5 +7,24 @@ inputs:
     description: When 'true', render infra/terraform.tfvars.json from config/infra.json.
     default: "false"
 runs:
-  using: node20
-  main: index.mjs
+  using: composite
+  steps:
+    # Flatten nested JSON (e.g. gcp.project_id -> gcp_project_id) and export
+    # as environment variables for subsequent workflow steps.
+    - id: flatten
+      shell: bash
+      run: |
+        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/infra.json)
+        echo "json=$flat" >> "$GITHUB_OUTPUT"
+        echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+
+    # Filter the flattened config to only the variables declared in
+    # variables.tf, then write infra/terraform.tfvars.json.
+    - if: ${{ inputs.tfvars == 'true' }}
+      shell: bash
+      run: |
+        grep -oE '^variable "[^"]+"' infra/variables.tf \
+          | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
+        declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
+        echo '${{ steps.flatten.outputs.json }}' | jq --argjson declared "$declared" \
+          'with_entries(select($declared[.key]))' > infra/terraform.tfvars.json
