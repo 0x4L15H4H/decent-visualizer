@@ -1,0 +1,10 @@
+{
+  "domain": "alishah.xyz",
+  "cloudflare": {
+    "pages_project": "decent-visualizer"
+  },
+  "infisical": {
+    "backend_project_id": "e13f5a2b-1efe-4352-88e5-46641e007383",
+    "backend_identity_id": "f3e83179-850b-48cd-b7da-a15f9bc49ef2"
+  }
+}

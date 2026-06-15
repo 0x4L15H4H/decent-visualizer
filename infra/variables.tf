@@ -101,7 +101,7 @@ variable "infisical_deploy_identity_id" {
   type        = string
 }
 
-variable "infisical_project_id" {
-  description = "Infisical project (workspace) ID that holds the backend secrets, written to /backend in the prod environment."
+variable "infisical_deploy_project_id" {
+  description = "Infisical project (workspace) ID. Used by the deploy identity to read /deploy and write /backend secrets."
   type        = string
 }

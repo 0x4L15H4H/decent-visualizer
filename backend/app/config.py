@@ -1,34 +1,57 @@
+import os
 from functools import lru_cache
-from typing import ClassVar
+from typing import ClassVar, override
 
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class CloudflareConfig(BaseModel):
+    pages_project: str
+
+
 class Settings(BaseSettings):
-    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
-        env_file=("../config.env", "config.env", ".env"),
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
     supabase_url: str
     supabase_service_key: str
-    domain: str
-    cloudflare_pages_project: str
 
     @property
     def cors_origins(self) -> list[str]:
-        # Mirror the infra CORS allow-list. Credentialed CORS forbids a
-        # wildcard, so the origins are listed explicitly.
+        raise NotImplementedError
+
+
+class ProdSettings(Settings):
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        json_file="config.json",
+        extra="ignore",
+    )
+    domain: str
+    cloudflare: CloudflareConfig
+
+    @property
+    @override
+    def cors_origins(self) -> list[str]:
         return [
             f"https://{self.domain}",
             f"https://www.{self.domain}",
-            f"https://{self.cloudflare_pages_project}.pages.dev",
+            f"https://{self.cloudflare.pages_project}.pages.dev",
         ]
+
+
+class DevSettings(Settings):
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
+        json_file="../config/dev/backend.json",
+        extra="ignore",
+    )
+
+    @property
+    @override
+    def cors_origins(self) -> list[str]:
+        return []
 
 
 @lru_cache
 def get_settings() -> Settings:
-    # basedpyright sees the properties as required __init__ args (no defaults),
-    # but pydantic-settings fulfills them from env vars at runtime.
-    # No pyright plugin exists yet to model this.
-    return Settings()  # pyright: ignore[reportCallIssue]
+    env = os.getenv("APP_ENV", "dev")
+    if env == "prod":
+        return ProdSettings()  # pyright: ignore[reportCallIssue]
+    return DevSettings()  # pyright: ignore[reportCallIssue]

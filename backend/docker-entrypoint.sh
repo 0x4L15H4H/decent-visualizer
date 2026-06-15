@@ -4,17 +4,11 @@
 # image), then exec the app with those secrets injected into its environment.
 set -euo pipefail
 
-CONFIG_FILE=/app/config.env
-
-read_config() {
-  grep -E "^$1=" "$CONFIG_FILE" | cut -d= -f2- | tr -d '"[:space:]'
-}
-
-project_id="$(read_config infisical_project_id)"
-identity_id="$(read_config infisical_backend_identity_id)"
+project_id="$(jq -r '.infisical.backend_project_id' /app/config.json)"
+identity_id="$(jq -r '.infisical.backend_identity_id' /app/config.json)"
 
 if [[ -z "$project_id" || -z "$identity_id" ]]; then
-  echo "infisical_project_id and infisical_backend_identity_id must be set in config.env" >&2
+  echo "infisical_backend_project_id and infisical_backend_identity_id must be set in config.json" >&2
   exit 1
 fi
 

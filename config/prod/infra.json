@@ -1,0 +1,28 @@
+{
+  "domain": "alishah.xyz",
+  "project_name": "Decent Visualizer",
+  "project_slug": "decent-visualizer",
+  "gcp": {
+    "project_id": "decent-visualizer",
+    "region": "us-central1",
+    "zone": "us-central1-a",
+    "service_account": "terraform@decent-visualizer.iam.gserviceaccount.com"
+  },
+  "vm": {
+    "machine_type": "e2-micro",
+    "boot_disk_size_gb": 30
+  },
+  "supabase": {
+    "org_id": "glvwqtjhnydtixrlcfxf",
+    "db_region": "us-east-2"
+  },
+  "cloudflare": {
+    "account_id": "b1357ee146ae17c1780cfaf0b2a3a6b6",
+    "zone_id": "201834cd65f5a2d4818f9cf79897cb5f",
+    "pages_project": "decent-visualizer"
+  },
+  "infisical": {
+    "deploy_project_id": "e13f5a2b-1efe-4352-88e5-46641e007383",
+    "deploy_identity_id": "9f56b963-0192-4521-b0ca-21f553bc20d8"
+  }
+}

@@ -6,14 +6,14 @@
 ephemeral "infisical_secret" "supabase_admin_token" {
   name         = "SUPABASE_ADMIN_TOKEN"
   env_slug     = "prod"
-  workspace_id = var.infisical_project_id
+  workspace_id = var.infisical_deploy_project_id
   folder_path  = "/deploy"
 }
 
 ephemeral "infisical_secret" "cloudflare_api_token" {
   name         = "CLOUDFLARE_API_TOKEN"
   env_slug     = "prod"
-  workspace_id = var.infisical_project_id
+  workspace_id = var.infisical_deploy_project_id
   folder_path  = "/deploy"
 }
 
@@ -24,7 +24,7 @@ resource "infisical_secret" "supabase_url" {
   name         = "supabase_url"
   value        = module.supabase.api_url
   env_slug     = "prod"
-  workspace_id = var.infisical_project_id
+  workspace_id = var.infisical_deploy_project_id
   folder_path  = "/backend"
 }
 
@@ -32,6 +32,6 @@ resource "infisical_secret" "supabase_service_key" {
   name         = "supabase_service_key"
   value        = module.supabase.service_role_key
   env_slug     = "prod"
-  workspace_id = var.infisical_project_id
+  workspace_id = var.infisical_deploy_project_id
   folder_path  = "/backend"
 }

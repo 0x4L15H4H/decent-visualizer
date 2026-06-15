@@ -1,28 +1,32 @@
 name: Load config
-description: >-
-  Export config.env into the job environment. When tfvars is true, also render
-  the non-secret Terraform variables from it into infra/terraform.tfvars.json.
+description: Export selected prod config files into the job environment as flattened key=value pairs.
 inputs:
-  tfvars:
-    description: When 'true', render infra/terraform.tfvars.json from config.env.
+  ci:
+    description: Load prod/ci.json.
+    default: "false"
+  infra:
+    description: Load prod/infra.json.
+    default: "false"
+  backend:
+    description: Load prod/backend.json.
     default: "false"
 runs:
   using: composite
   steps:
-    # Export config.env into the job environment.
-    - shell: bash
-      run: grep -vE '^[[:space:]]*(#|$)' config.env >> "$GITHUB_ENV"
-
-    # Render the declared variables to tfvars. Secrets come from Infisical, and
-    # undeclared config keys are dropped so Terraform doesn't warn.
-    - if: ${{ inputs.tfvars == 'true' }}
+    - name: Load prod/infra.json
+      if: inputs.infra == 'true'
       shell: bash
       run: |
-        npx -y @dotenvx/dotenvx get --format json -f config.env \
-          > "$RUNNER_TEMP/config.json"
-        grep -oE '^variable "[^"]+"' infra/variables.tf \
-          | sed -E 's/.*"(.*)"/\1/' > "$RUNNER_TEMP/declared.txt"
-        declared=$(jq -Rn '[inputs] | map({(.): true}) | add' "$RUNNER_TEMP/declared.txt")
-        jq --argjson declared "$declared" \
-          'with_entries(select($declared[.key]))' \
-          "$RUNNER_TEMP/config.json" > infra/terraform.tfvars.json
+        flat=$(jq -c '[paths(scalars) as $p | {([$p[] | tostring] | join("_")): getpath($p)}] | add' config/prod/infra.json)
+        echo "$flat" | jq -r 'to_entries[] | "\(.key)=\(.value)"' >> "$GITHUB_ENV"
+        echo "$flat" | jq '.' > infra/terraform.tfvars.json
+
+    - name: Load prod/ci.json
+      if: inputs.ci == 'true'
+      shell: bash
+      run: jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/ci.json >> "$GITHUB_ENV"
+
+    - name: Load prod/backend.json
+      if: inputs.backend == 'true'
+      shell: bash
+      run: jq -r '[paths(scalars) as $p | "\([$p[] | tostring] | join("_"))=\(getpath($p))"][]' config/prod/backend.json >> "$GITHUB_ENV"
