@@ -1,13 +1,16 @@
-.PHONY: dev dev-frontend dev-backend build lint format
+.PHONY: dev dev-frontend dev-backend dev-supabase build lint format
 
 dev:
-	@make -j2 dev-frontend dev-backend
+	@make -j3 dev-frontend dev-backend dev-supabase
 
 dev-frontend:
 	cd frontend && pnpm dev
 
 dev-backend:
 	$(MAKE) -C backend dev
+
+dev-supabase:
+	supabase start
 
 lint:
 	@$(MAKE) -C backend lint & \
