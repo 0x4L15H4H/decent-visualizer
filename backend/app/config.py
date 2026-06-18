@@ -18,8 +18,10 @@ class CloudflareConfig(BaseModel):
 class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
+    gemini_api_key: str | None = None
 
     @classmethod
+    @override
     def settings_customise_sources(
         cls,
         settings_cls: type[BaseSettings],
@@ -37,6 +39,10 @@ class Settings(BaseSettings):
         )
 
     @property
+    def is_prod(self) -> bool:
+        return False
+
+    @property
     def cors_origins(self) -> list[str]:
         raise NotImplementedError
 
@@ -48,6 +54,11 @@ class ProdSettings(Settings):
     )
     domain: str
     cloudflare: CloudflareConfig
+
+    @property
+    @override
+    def is_prod(self) -> bool:
+        return True
 
     @property
     @override

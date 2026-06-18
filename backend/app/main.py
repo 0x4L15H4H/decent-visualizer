@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
-from app.routers import beans, health, shots
+from app.routers import auth, beans, health, shots
+from app.routers import settings as settings_router
 
 settings = get_settings()
 
@@ -22,5 +23,7 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 app.include_router(shots.router, prefix="/api")
 app.include_router(beans.router, prefix="/api")
+app.include_router(settings_router.router, prefix="/api")

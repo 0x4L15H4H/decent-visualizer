@@ -3,10 +3,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.db import get_supabase
+from app.dependencies import get_current_user
 from app.models.shot import ShotSummary, ShotUpload, ShotUploadCreate, ShotUploadUpdate
 from app.storage.shots import ShotStorage
 
-router = APIRouter(prefix="/shots", tags=["shots"])
+router = APIRouter(prefix="/shots", tags=["shots"], dependencies=[Depends(get_current_user)])
 
 
 def _storage() -> ShotStorage:
@@ -33,7 +34,11 @@ def create_shot(data: ShotUploadCreate, storage: ShotStorage = Depends(_storage)
 
 
 @router.patch("/{shot_id}", response_model=ShotUpload)
-def update_shot(shot_id: str, data: ShotUploadUpdate, storage: ShotStorage = Depends(_storage)):
+def update_shot(
+    shot_id: str,
+    data: ShotUploadUpdate,
+    storage: ShotStorage = Depends(_storage),
+):
     shot = storage.update(shot_id, data)
     if shot is None:
         raise HTTPException(status_code=404, detail="Shot not found")
