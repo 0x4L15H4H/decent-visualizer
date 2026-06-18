@@ -68,8 +68,8 @@ Chosen for dark-background contrast and colorblind safety.
 
 ### Buttons (Base UI)
 
-- **Primary:** `bg-(--color-accent)` background, dark text. Hover uses `--color-accent-hover`.
-- **Secondary:** Ghost/outline on `bg-(--color-bg-raised)`. Border `--color-border-default`.
+- **Primary:** `bg-(--color-bg-raised)` with `border-(--color-border-default)`, white text. Hover `bg-white/10`. No colored buttons; keep full high-contrast black/white aesthetic.
+- **Secondary:** Ghost, no border. `text-text-secondary` with hover to `text-text-primary`.
 - **Size:** Small by default: `text-sm px-3 py-1.5`.
 - **Border radius:** `rounded-md`.
 

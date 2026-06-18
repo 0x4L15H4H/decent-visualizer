@@ -10,6 +10,7 @@
     "no-unused-vars": "off",
     "react-in-jsx-scope": "off",
     "no-unassigned-import": "off",
-    "prefer-query-selector": "off"
+    "prefer-query-selector": "off",
+    "max-lines-per-function": ["warn", { "max": 100 }]
   }
 }

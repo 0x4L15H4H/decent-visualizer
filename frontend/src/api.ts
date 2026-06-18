@@ -10,8 +10,8 @@
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
-export async function apiRequest(path: string, init?: RequestInit) {
-  return fetch(`${API_BASE}${path}`, init);
+export function apiRequest(path: string, init?: RequestInit) {
+  return fetch(`${API_BASE}${path}`, { credentials: "include", ...init });
 }
 
 export const api = {
@@ -30,4 +30,9 @@ export const api = {
     }),
   delete: (path: string) =>
     apiRequest(path, { method: "DELETE" }),
+  upload: (path: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiRequest(path, { method: "POST", body: form });
+  },
 };
