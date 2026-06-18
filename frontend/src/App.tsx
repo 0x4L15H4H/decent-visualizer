@@ -51,9 +51,7 @@ function AppRoutes() {
             <NavTab to="/settings" label="Settings" />
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-text-secondary">
-              {user.display_name ?? user.email}
-            </span>
+            <span className="text-sm text-text-secondary">{user.display_name ?? user.email}</span>
             <button
               type="button"
               onClick={logout}
