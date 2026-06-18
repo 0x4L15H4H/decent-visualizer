@@ -1,6 +1,10 @@
 # Environment
 .env
 
+# Claude Code
+.claude/
+plans/
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
