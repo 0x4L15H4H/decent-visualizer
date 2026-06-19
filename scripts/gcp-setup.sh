@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Set properties
-REPO="enervator/decent-visualizer"
+REPO="0x4L15H4H/decent-visualizer"
 PROJECT_ID="decent-visualizer"
 
 # Derived properties

@@ -79,10 +79,14 @@ logging:
       include_paths:
         - /var/log/syslog
         - /var/log/messages
+    docker:
+      type: files
+      include_paths:
+        - /var/lib/docker/containers/*/*.log
   service:
     pipelines:
       default_pipeline:
-        receivers: [syslog]
+        receivers: [syslog, docker]
 metrics:
   receivers:
     hostmetrics:
