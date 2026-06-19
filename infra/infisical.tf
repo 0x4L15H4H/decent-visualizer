@@ -4,14 +4,14 @@
 # that phase, so they never transit CI as a file or land in the state file. See
 # the supabase and cloudflare provider blocks in providers.tf.
 ephemeral "infisical_secret" "supabase_admin_token" {
-  name         = "SUPABASE_ADMIN_TOKEN"
+  name         = "supabase_admin_token"
   env_slug     = "prod"
   workspace_id = var.infisical_deploy_project_id
   folder_path  = "/deploy"
 }
 
 ephemeral "infisical_secret" "cloudflare_api_token" {
-  name         = "CLOUDFLARE_API_TOKEN"
+  name         = "cloudflare_api_token"
   env_slug     = "prod"
   workspace_id = var.infisical_deploy_project_id
   folder_path  = "/deploy"
