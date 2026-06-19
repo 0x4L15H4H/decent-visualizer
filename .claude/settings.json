@@ -1,0 +1,21 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */backend/*.py) cd \"${f%%/backend/*}/backend\" && rel=\"${f#*/backend/}\" && uv run ruff check --fix \"$rel\" && uv run ruff format \"$rel\" && uv run basedpyright \"$rel\" ;; esac; } 2>/dev/null || true",
+            "statusMessage": "Running ruff + basedpyright..."
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */frontend/*.tsx|*/frontend/*.ts|*/frontend/*.jsx|*/frontend/*.js|*/frontend/*.css) cd \"${f%%/frontend/*}/frontend\" && rel=\"${f#*/frontend/}\" && pnpm oxlint --fix \"$rel\" && pnpm oxfmt \"$rel\" ;; esac; } 2>/dev/null || true",
+            "statusMessage": "Running oxlint + oxfmt..."
+          }
+        ]
+      }
+    ]
+  }
+}
