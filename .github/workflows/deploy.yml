@@ -115,9 +115,13 @@ jobs:
           export-type: env
 
       - uses: supabase/setup-cli@v1
+        with:
+          version: 2.107.0
 
       - name: Push migrations
-        run: supabase db push --linked
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase db push --linked
         env:
           SUPABASE_ACCESS_TOKEN: ${{ env.supabase_admin_token }}
           SUPABASE_PROJECT_REF: ${{ needs.infra.outputs.supabase_project_ref }}
