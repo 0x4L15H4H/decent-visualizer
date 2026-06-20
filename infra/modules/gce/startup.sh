@@ -61,19 +61,13 @@ apt-get install -y -qq cloudflared
 log "Registering cloudflared service..."
 cloudflared service install "$CLOUDFLARED_TOKEN"
 
-# ── Cloud Ops Agent (logging + agent metrics) ───────────────────────────
-# Standard GCE metrics (CPU/disk/network) are free without an agent. The Ops
-# Agent adds memory + log visibility. We trim its config to drop the agent's
-# own self-metrics, the largest avoidable ingestion, to stay well within the
-# free tier (50 GiB/mo logging; standard metrics are free).
+# ── Cloud Ops Agent (syslog + host metrics) ─────────────────────────────
+# Docker container logs are handled by the gcplogs driver (see
+# docker-compose.yml), so the Ops Agent only covers syslog and host metrics.
+# Its config is deployed from config/prod/ops-agent.yaml during CI.
 
 log "Installing Cloud Ops Agent..."
 curl -fsSL https://dl.google.com/cloudagents/add-google-cloud-ops-agent.sh \
   | bash -s -- --also-install
-
-# The Ops Agent config is deployed from config/prod/ops-agent.yaml during CI.
-# On first boot there is no app deploy yet, so install a minimal config that
-# the deploy step will overwrite.
-systemctl restart google-cloud-ops-agent
 
 log "Startup complete. Deploy with scripts/deploy.sh."
