@@ -1,0 +1,30 @@
+logging:
+  receivers:
+    syslog:
+      type: files
+      include_paths:
+        - /var/log/syslog
+        - /var/log/messages
+    docker:
+      type: files
+      include_paths:
+        - /var/lib/docker/containers/*/*.log
+  service:
+    pipelines:
+      default_pipeline:
+        receivers: [syslog, docker]
+metrics:
+  receivers:
+    hostmetrics:
+      type: hostmetrics
+      collection_interval: 60s
+  processors:
+    exclude_agent:
+      type: exclude_metrics
+      metrics_pattern:
+        - agent.googleapis.com/agent/*
+  service:
+    pipelines:
+      default_pipeline:
+        receivers: [hostmetrics]
+        processors: [exclude_agent]

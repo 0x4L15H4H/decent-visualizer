@@ -165,6 +165,9 @@ jobs:
           gcloud compute scp --quiet \
             --project="$gcp_project_id" --zone="$gcp_zone" \
             docker-compose.yml "appuser@${project_slug}:/opt/app/docker-compose.yml"
+          gcloud compute scp --quiet \
+            --project="$gcp_project_id" --zone="$gcp_zone" \
+            config/prod/ops-agent.yaml "appuser@${project_slug}:/tmp/ops-agent.yaml"
 
       - name: Reload on VM
         run: |
@@ -176,6 +179,9 @@ jobs:
           docker compose up -d --remove-orphans
           docker image prune -f
           rm -f /tmp/backend-image.tar.gz
+          sudo cp /tmp/ops-agent.yaml /etc/google-cloud-ops-agent/config.yaml
+          sudo systemctl restart google-cloud-ops-agent
+          rm -f /tmp/ops-agent.yaml
           REMOTE
 
   frontend:
