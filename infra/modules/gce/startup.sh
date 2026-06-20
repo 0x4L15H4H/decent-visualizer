@@ -61,13 +61,4 @@ apt-get install -y -qq cloudflared
 log "Registering cloudflared service..."
 cloudflared service install "$CLOUDFLARED_TOKEN"
 
-# ── Cloud Ops Agent (syslog + host metrics) ─────────────────────────────
-# Docker container logs are handled by the gcplogs driver (see
-# docker-compose.yml), so the Ops Agent only covers syslog and host metrics.
-# Its config is deployed from config/prod/ops-agent.yaml during CI.
-
-log "Installing Cloud Ops Agent..."
-curl -fsSL https://dl.google.com/cloudagents/add-google-cloud-ops-agent.sh \
-  | bash -s -- --also-install
-
 log "Startup complete. Deploy with scripts/deploy.sh."
