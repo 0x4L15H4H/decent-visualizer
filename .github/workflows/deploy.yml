@@ -10,42 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    outputs:
-      infra: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.infra }}
-      backend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.backend }}
-      frontend: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.frontend }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            infra:
-              - infra/**
-              - config/**
-            backend:
-              - backend/**
-              - docker-compose.yml
-              - config/**
-            frontend:
-              - frontend/**
-              - config/**
-
   test:
     name: Lint & test
-    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       # ── Backend ──
       - uses: astral-sh/setup-uv@v5
-        if: needs.changes.outputs.backend == 'true'
       - name: Backend lint
-        if: needs.changes.outputs.backend == 'true'
         run: |
           uv sync --frozen
           uv run ruff check .
@@ -54,17 +27,14 @@ jobs:
 
       # ── Frontend ──
       - uses: pnpm/action-setup@v4
-        if: needs.changes.outputs.frontend == 'true'
         with:
           package_json_file: frontend/package.json
       - uses: actions/setup-node@v4
-        if: needs.changes.outputs.frontend == 'true'
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Frontend lint, typecheck & test
-        if: needs.changes.outputs.frontend == 'true'
         run: |
           pnpm install --frozen-lockfile
           pnpm lint
@@ -74,9 +44,10 @@ jobs:
 
   infra:
     name: Infra
-    needs: [changes, test]
-    if: ${{ needs.changes.outputs.infra == 'true' }}
+    needs: test
     runs-on: ubuntu-latest
+    outputs:
+      supabase_project_ref: ${{ steps.tofu-output.outputs.supabase_project_ref }}
 
     steps:
       - uses: actions/checkout@v4
@@ -118,10 +89,42 @@ jobs:
         run: tofu apply -auto-approve
         working-directory: infra
 
-  backend:
-    name: Deploy backend
-    needs: [changes, test, infra]
-    if: ${{ always() && needs.test.result == 'success' && needs.infra.result != 'failure' && needs.infra.result != 'cancelled' && needs.changes.outputs.backend == 'true' }}
+      - name: Export outputs
+        id: tofu-output
+        run: echo "supabase_project_ref=$(tofu output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
+        working-directory: infra
+
+  migrate:
+    name: Run migrations
+    needs: infra
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/load-config
+        with:
+          ci: "true"
+
+      - uses: Infisical/secrets-action@v1.0.16
+        with:
+          identity-id: ${{ env.infisical_deploy_identity_id }}
+          method: oidc
+          env-slug: "prod"
+          project-slug: ${{ env.infisical_deploy_project_slug }}
+          secret-path: "/deploy"
+          export-type: env
+
+      - uses: supabase/setup-cli@v1
+
+      - name: Push migrations
+        run: supabase db push --linked
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ env.supabase_admin_token }}
+          SUPABASE_PROJECT_REF: ${{ needs.infra.outputs.supabase_project_ref }}
+
+  vm:
+    name: Deploy VM
+    needs: migrate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -173,8 +176,7 @@ jobs:
 
   frontend:
     name: Deploy frontend
-    needs: [changes, test, infra]
-    if: ${{ always() && needs.test.result == 'success' && needs.infra.result != 'failure' && needs.infra.result != 'cancelled' && needs.changes.outputs.frontend == 'true' }}
+    needs: migrate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -182,14 +184,14 @@ jobs:
       - uses: ./.github/actions/load-config
         with:
           ci: "true"
-          backend: "true"
+          infra: "true"
 
       - uses: Infisical/secrets-action@v1.0.16
         with:
           identity-id: ${{ env.infisical_deploy_identity_id }}
           method: oidc
           env-slug: "prod"
-          project-slug: ${{ env.infisical_project_slug }}
+          project-slug: ${{ env.infisical_deploy_project_slug }}
           secret-path: "/deploy"
           export-type: env
 

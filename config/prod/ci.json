@@ -3,7 +3,7 @@
     "workflow_identity_provider": "projects/669096378198/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
   },
   "infisical": {
-    "project_slug": "decent-visualizer",
+    "deploy_project_slug": "decent-visualizer",
     "deploy_identity_id": "9f56b963-0192-4521-b0ca-21f553bc20d8"
   }
 }
