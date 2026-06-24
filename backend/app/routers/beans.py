@@ -52,7 +52,7 @@ async def extract_from_photo(file: UploadFile):
     if len(image_bytes) > _MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image too large (max 10 MB)")
 
-    result = get_bean_info_from_image(
+    result = await get_bean_info_from_image(
         gemini_api_key=settings.gemini_api_key,
         parallel_api_key=settings.parallel_api_key,
         image_bytes=image_bytes,
