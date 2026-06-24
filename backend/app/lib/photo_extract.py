@@ -16,6 +16,7 @@ _EXTRACT_PROMPT = (
     'search results when they clearly refer to the same coffee. "notes" should capture '
     "flavor/tasting notes if listed. Return null for any field that cannot be determined."
 )
+_GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
 @dataclass
@@ -72,7 +73,7 @@ async def get_bean_info_from_image(
 ) -> BeanExtracted | None:
     deps = BeanPhotoDeps(parallel_api_key=parallel_api_key)
     model = GoogleModel(
-        "gemini-3.5-flash",
+        _GEMINI_MODEL,
         provider=GoogleProvider(api_key=gemini_api_key),
     )
     result = await _bean_photo_agent.run(
