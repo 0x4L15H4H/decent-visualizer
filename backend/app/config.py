@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_key: str
     gemini_api_key: str | None = None
+    parallel_api_key: str | None = None
 
     @classmethod
     @override

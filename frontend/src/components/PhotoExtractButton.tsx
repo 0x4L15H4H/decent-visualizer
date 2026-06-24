@@ -65,7 +65,7 @@ export function PhotoExtractButton({ onExtracted }: { onExtracted: (data: Extrac
       >
         {label}
       </button>
-      {!enabled && <span className="text-xs text-text-muted">Gemini API key not configured</span>}
+      {!enabled && <span className="text-xs text-text-muted">Photo extraction not configured</span>}
       {error && <span className="text-xs text-destructive">{error}</span>}
     </div>
   );

@@ -23,7 +23,10 @@ def list_beans(storage: BeanStorage = Depends(_storage)):
 
 @router.get("/photo-extract/enabled")
 def photo_extract_enabled():
-    return {"enabled": get_settings().gemini_api_key is not None}
+    settings = get_settings()
+    return {
+        "enabled": settings.gemini_api_key is not None and settings.parallel_api_key is not None
+    }
 
 
 @router.get("/{bean_id}", response_model=Bean)
@@ -42,7 +45,7 @@ def create_bean(data: BeanCreate, storage: BeanStorage = Depends(_storage)):
 @router.post("/photo-extract/upload", response_model=BeanExtracted)
 async def extract_from_photo(file: UploadFile):
     settings = get_settings()
-    if not settings.gemini_api_key:
+    if not settings.gemini_api_key or not settings.parallel_api_key:
         raise HTTPException(status_code=503, detail="Photo extraction not configured")
 
     image_bytes = await file.read()
@@ -50,7 +53,8 @@ async def extract_from_photo(file: UploadFile):
         raise HTTPException(status_code=413, detail="Image too large (max 10 MB)")
 
     result = get_bean_info_from_image(
-        api_key=settings.gemini_api_key,
+        gemini_api_key=settings.gemini_api_key,
+        parallel_api_key=settings.parallel_api_key,
         image_bytes=image_bytes,
         mime_type=file.content_type or "image/jpeg",
     )
