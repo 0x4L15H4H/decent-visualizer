@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
+import {
+  CountryCandidatePicker,
+  EntityCandidatePicker,
+} from "./NormalizationCandidatePicker";
 import { PhotoExtractButton, type ExtractedBean } from "./PhotoExtractButton";
-import { ProcessCandidatePicker } from "./ProcessCandidatePicker";
 import type { BeanFormValues } from "../types/bean";
 
 const inputClass =
@@ -76,7 +79,14 @@ export function BeanForm({
         <input type="text" placeholder="Variety" value={values.variety} onChange={(e) => updateValue("variety", e.target.value)} className={inputClass} />
         <input type="text" placeholder="Process" value={values.process} onChange={(e) => updateValue("process", e.target.value)} className={inputClass} />
       </div>
-      <ProcessCandidatePicker value={values.process} onSelect={(value) => updateValue("process", value)} />
+      <div className="flex flex-col gap-1">
+        <EntityCandidatePicker kind="roaster" value={values.roaster} onSelect={(value) => updateValue("roaster", value)} />
+        <EntityCandidatePicker kind="producer" value={values.producer} onSelect={(value) => updateValue("producer", value)} />
+        <EntityCandidatePicker kind="farm" value={values.farm} onSelect={(value) => updateValue("farm", value)} />
+        <CountryCandidatePicker value={values.country} onSelect={(value) => updateValue("country", value)} />
+        <EntityCandidatePicker kind="variety" value={values.variety} onSelect={(value) => updateValue("variety", value)} />
+        <EntityCandidatePicker kind="process" value={values.process} onSelect={(value) => updateValue("process", value)} />
+      </div>
       <textarea
         placeholder="Flavor notes"
         rows={2}

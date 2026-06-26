@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.db import get_supabase
 from app.dependencies import get_current_user
+from app.lib.countries import CountryCandidate, country_candidates
 from app.models.entities import (
     CanonicalEntity,
     EntityAlias,
@@ -95,3 +96,11 @@ def find_normalization_candidates(
     limit: Annotated[int, Query(ge=1, le=20)] = 8,
 ):
     return storage.candidates(kind=kind, value=q, limit=limit)
+
+
+@normalization_router.get("/countries", response_model=list[CountryCandidate])
+def find_country_candidates(
+    q: Annotated[str, Query(min_length=1)],
+    limit: Annotated[int, Query(ge=1, le=20)] = 8,
+):
+    return country_candidates(q, limit=limit)
