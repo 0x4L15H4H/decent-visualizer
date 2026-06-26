@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { PhotoExtractButton, type ExtractedBean } from "./PhotoExtractButton";
+import { ProcessCandidatePicker } from "./ProcessCandidatePicker";
 import type { BeanFormValues } from "../types/bean";
 
 const inputClass =
@@ -75,6 +76,7 @@ export function BeanForm({
         <input type="text" placeholder="Variety" value={values.variety} onChange={(e) => updateValue("variety", e.target.value)} className={inputClass} />
         <input type="text" placeholder="Process" value={values.process} onChange={(e) => updateValue("process", e.target.value)} className={inputClass} />
       </div>
+      <ProcessCandidatePicker value={values.process} onSelect={(value) => updateValue("process", value)} />
       <textarea
         placeholder="Flavor notes"
         rows={2}
