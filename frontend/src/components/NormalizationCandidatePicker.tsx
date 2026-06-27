@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import { CanonicalTypeahead, type TypeaheadOption } from "./CanonicalTypeahead";
 import type {
   CanonicalEntity,
   CountryCandidate,
@@ -7,72 +8,34 @@ import type {
   NormalizationCandidate,
 } from "../types/normalization";
 
-const chipClass =
-  "rounded-md border border-border-default bg-bg-raised px-2 py-1 text-xs text-text-secondary hover:bg-white/10 disabled:opacity-50";
-
-function statusText(kind: string, loading: boolean, empty: boolean) {
-  if (loading) return `Finding ${kind} matches...`;
-  if (empty) return `No canonical ${kind} match`;
-  return null;
-}
-
-function EntityCandidateChips({
-  candidates,
-  selectedId,
-  creating,
-  createLabel,
-  onCreate,
-  onSelect,
-}: {
-  candidates: NormalizationCandidate[];
-  selectedId: string | null;
-  creating: boolean;
-  createLabel: string;
-  onCreate: () => void;
-  onSelect: (candidate: NormalizationCandidate) => void;
-}) {
-  return (
-    <>
-      {candidates.map((candidate) => (
-        <button
-          key={candidate.id}
-          type="button"
-          onClick={() => onSelect(candidate)}
-          className={chipClass}
-        >
-          {candidate.canonical_name}
-        </button>
-      ))}
-      {!selectedId && (
-        <button type="button" onClick={onCreate} disabled={creating} className={chipClass}>
-          {creating ? "Creating..." : createLabel}
-        </button>
-      )}
-    </>
-  );
-}
-
-function useEntityCandidates(kind: EntityKind, query: string) {
-  const [candidates, setCandidates] = useState<NormalizationCandidate[]>([]);
+function useCandidates<T>(query: string, path: string) {
+  const [candidates, setCandidates] = useState<T[]>([]);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (!query) {
+    if (!query.trim()) {
       setCandidates([]);
+      setLoading(false);
+      setFailed(false);
       return;
     }
 
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLoading(true);
+      setFailed(false);
       api
-        .get(`/api/normalization/candidates?kind=${kind}&q=${encodeURIComponent(query)}`, {
-          signal: controller.signal,
+        .get(`${path}${encodeURIComponent(query.trim())}`, { signal: controller.signal })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Candidate search failed");
+          setCandidates(await response.json());
         })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => setCandidates(data))
         .catch(() => {
-          if (!controller.signal.aborted) setCandidates([]);
+          if (!controller.signal.aborted) {
+            setCandidates([]);
+            setFailed(true);
+          }
         })
         .finally(() => {
           if (!controller.signal.aborted) setLoading(false);
@@ -83,46 +46,55 @@ function useEntityCandidates(kind: EntityKind, query: string) {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [kind, query]);
+  }, [path, query]);
 
-  return { candidates, loading, setCandidates };
+  return { candidates, loading, failed, setCandidates };
 }
 
 export function EntityCandidatePicker({
   kind,
   value,
   selectedId,
+  required,
+  onInputChange,
   onSelect,
 }: {
   kind: EntityKind;
   value: string;
   selectedId: string | null;
-  onSelect: (entity: { id: string; name: string }) => void;
+  required?: boolean;
+  onInputChange: (value: string) => void;
+  onSelect: (entity: TypeaheadOption) => void;
 }) {
-  const [creating, setCreating] = useState(false);
-  const query = value.trim();
-  const { candidates, loading, setCandidates } = useEntityCandidates(kind, query);
-  const selected = useMemo(
-    () => candidates.find((candidate) => candidate.id === selectedId),
-    [candidates, selectedId],
+  const path = `/api/normalization/candidates?kind=${kind}&q=`;
+  const { candidates, loading, failed, setCandidates } = useCandidates<NormalizationCandidate>(
+    value,
+    path,
   );
-
-  const selectCandidate = useCallback(
-    (candidate: NormalizationCandidate) => {
-      onSelect({ id: candidate.id, name: candidate.canonical_name });
-    },
-    [onSelect],
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const options = useMemo(
+    () =>
+      candidates.map((candidate) => ({
+        id: candidate.id,
+        name: candidate.canonical_name,
+      })),
+    [candidates],
   );
 
   const createEntity = useCallback(async () => {
-    if (!query) return;
+    const name = value.trim();
+    if (!name) return;
     setCreating(true);
+    setCreateError(null);
     try {
-      const res = await api.post("/api/entities", { kind, name: query });
-      if (!res.ok) return;
-      const entity: CanonicalEntity = await res.json();
-      onSelect({ id: entity.id, name: entity.name });
-      setCandidates((prev) => [
+      const response = await api.post("/api/entities", { kind, name });
+      if (!response.ok) {
+        const body = await response.json();
+        throw new Error(body.detail ?? `Could not create ${kind}`);
+      }
+      const entity: CanonicalEntity = await response.json();
+      setCandidates((current) => [
         {
           id: entity.id,
           kind: entity.kind,
@@ -131,94 +103,73 @@ export function EntityCandidatePicker({
           score: 1,
           match_reason: "created",
         },
-        ...prev,
+        ...current,
       ]);
+      onSelect({ id: entity.id, name: entity.name });
+    } catch (error) {
+      setCreateError(error instanceof Error ? error.message : `Could not create ${kind}`);
     } finally {
       setCreating(false);
     }
-  }, [kind, onSelect, query, setCandidates]);
-
-  if (!query) return null;
-
-  const message = statusText(kind, loading, candidates.length === 0);
+  }, [kind, onSelect, setCandidates, value]);
 
   return (
-    <div className="flex min-h-7 flex-wrap items-center gap-2">
-      {message && <span className="text-xs text-text-muted">{message}</span>}
-      {!loading && (
-        <EntityCandidateChips
-          candidates={candidates}
-          selectedId={selected?.id ?? selectedId}
-          creating={creating}
-          createLabel={`Create ${kind}`}
-          onCreate={() => void createEntity()}
-          onSelect={(candidate) => void selectCandidate(candidate)}
-        />
-      )}
-    </div>
+    <CanonicalTypeahead
+      label={kind[0].toUpperCase() + kind.slice(1)}
+      value={value}
+      selectedId={selectedId}
+      options={options}
+      loading={loading}
+      failed={failed}
+      required={required}
+      creating={creating}
+      createError={createError}
+      onInputChange={(nextValue) => {
+        setCreateError(null);
+        onInputChange(nextValue);
+      }}
+      onSelect={(entity) => {
+        setCreateError(null);
+        onSelect(entity);
+      }}
+      onCreate={() => void createEntity()}
+    />
   );
 }
 
 export function CountryCandidatePicker({
   value,
   selectedCode,
+  onInputChange,
   onSelect,
 }: {
   value: string;
   selectedCode: string | null;
+  onInputChange: (value: string) => void;
   onSelect: (country: CountryCandidate) => void;
 }) {
-  const [candidates, setCandidates] = useState<CountryCandidate[]>([]);
-  const [loading, setLoading] = useState(false);
-  const query = value.trim();
-
-  useEffect(() => {
-    if (!query) {
-      setCandidates([]);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => {
-      setLoading(true);
-      api
-        .get(`/api/normalization/countries?q=${encodeURIComponent(query)}`, {
-          signal: controller.signal,
-        })
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => setCandidates(data))
-        .catch(() => {
-          if (!controller.signal.aborted) setCandidates([]);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }, 250);
-
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [query]);
-
-  if (!query || selectedCode) return null;
-
-  const message = statusText("country", loading, candidates.length === 0);
+  const { candidates, loading, failed } = useCandidates<CountryCandidate>(
+    value,
+    "/api/normalization/countries?q=",
+  );
+  const options = useMemo(
+    () => candidates.map((candidate) => ({ id: candidate.code, name: candidate.name })),
+    [candidates],
+  );
 
   return (
-    <div className="flex min-h-7 flex-wrap items-center gap-2">
-      {message && <span className="text-xs text-text-muted">{message}</span>}
-      {!loading &&
-        candidates.map((candidate) => (
-          <button
-            key={candidate.code}
-            type="button"
-            onClick={() => onSelect(candidate)}
-            className={chipClass}
-          >
-            {candidate.name}
-          </button>
-        ))}
-    </div>
+    <CanonicalTypeahead
+      label="Country"
+      value={value}
+      selectedId={selectedCode}
+      options={options}
+      loading={loading}
+      failed={failed}
+      onInputChange={onInputChange}
+      onSelect={(option) => {
+        const country = candidates.find((candidate) => candidate.code === option.id);
+        if (country) onSelect(country);
+      }}
+    />
   );
 }

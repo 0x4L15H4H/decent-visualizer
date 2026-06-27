@@ -54,76 +54,55 @@ function BeanIdentityFields({
   values: BeanFormValues;
   setValues: Dispatch<SetStateAction<BeanFormValues>>;
 }) {
-  const entityField = (
+  const entityPicker = (
     kind: "roaster" | "producer" | "farm" | "variety" | "process",
     idField: "roasterId" | "producerId" | "farmId" | "varietyId" | "processId",
     required = false,
-  ) => (
-    <input
-      type="text"
-      placeholder={`${kind[0].toUpperCase()}${kind.slice(1)}${required ? " *" : ""}`}
-      required={required}
-      value={values[kind]}
-      onChange={(event) =>
-        setValues((prev) => ({ ...prev, [kind]: event.target.value, [idField]: null }))
-      }
-      className={inputClass}
-    />
-  );
-  const picker = (
-    kind: "roaster" | "producer" | "farm" | "variety" | "process",
-    idField: "roasterId" | "producerId" | "farmId" | "varietyId" | "processId",
   ) => (
     <EntityCandidatePicker
       kind={kind}
       value={values[kind]}
       selectedId={values[idField]}
+      required={required}
+      onInputChange={(value) => setValues((prev) => ({ ...prev, [kind]: value, [idField]: null }))}
       onSelect={(entity) =>
         setValues((prev) => ({ ...prev, [kind]: entity.name, [idField]: entity.id }))
       }
     />
   );
   return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <label className="flex min-w-0 flex-col gap-1">
+        <span className="text-xs font-medium text-text-secondary">Name *</span>
         <input
           type="text"
-          placeholder="Name *"
+          placeholder="Coffee name"
           required
           value={values.name}
           onChange={(event) => setValues((prev) => ({ ...prev, name: event.target.value }))}
-          className={inputClass}
+          className={`${inputClass} h-9`}
         />
-        {entityField("roaster", "roasterId", true)}
-        {entityField("producer", "producerId")}
-        {entityField("farm", "farmId")}
-        <input
-          type="text"
-          placeholder="Country"
-          value={values.country}
-          onChange={(event) =>
-            setValues((prev) => ({ ...prev, country: event.target.value, countryCode: null }))
-          }
-          className={inputClass}
-        />
-        {entityField("variety", "varietyId")}
-        {entityField("process", "processId")}
-      </div>
-      <div className="flex flex-col gap-1">
-        {picker("roaster", "roasterId")}
-        {picker("producer", "producerId")}
-        {picker("farm", "farmId")}
-        <CountryCandidatePicker
-          value={values.country}
-          selectedCode={values.countryCode}
-          onSelect={(country) =>
-            setValues((prev) => ({ ...prev, country: country.name, countryCode: country.code }))
-          }
-        />
-        {picker("variety", "varietyId")}
-        {picker("process", "processId")}
-      </div>
-    </>
+      </label>
+      {entityPicker("roaster", "roasterId", true)}
+      {entityPicker("producer", "producerId")}
+      {entityPicker("farm", "farmId")}
+      <CountryCandidatePicker
+        value={values.country}
+        selectedCode={values.countryCode}
+        onInputChange={(value) =>
+          setValues((prev) => ({ ...prev, country: value, countryCode: null }))
+        }
+        onSelect={(country) =>
+          setValues((prev) => ({
+            ...prev,
+            country: country.name,
+            countryCode: country.code,
+          }))
+        }
+      />
+      {entityPicker("variety", "varietyId")}
+      {entityPicker("process", "processId")}
+    </div>
   );
 }
 
