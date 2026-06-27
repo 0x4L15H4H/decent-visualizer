@@ -6,9 +6,9 @@ from pydantic_ai import Agent, BinaryContent, ModelRetry, RunContext, UsageLimit
 from pydantic_ai.models.google import GoogleModel
 from pydantic_ai.providers.google import GoogleProvider
 
-from app.lib.countries import CountryCandidate, country_candidates
-from app.models.bean import BeanExtracted
-from app.models.entities import EntityKind, NormalizationCandidate
+from app.lib.countries import country_candidates
+from app.models.bean import BeanExtracted, CanonicalSelection
+from app.models.entities import NormalizationCandidate, NormalizationKind
 from app.storage.entities import EntityStorage
 
 _EXTRACT_PROMPT = (
@@ -18,12 +18,15 @@ _EXTRACT_PROMPT = (
     "photo and use the search results to fill details not visible in the photo. Only use "
     'search results when they clearly refer to the same coffee. "notes" should capture '
     "flavor/tasting notes if listed. For any roaster, producer, farm, variety, or process "
-    "value you find, call find_normalization_candidates with the raw value and matching "
-    "kind before returning. When candidates are returned, use an exact candidate "
-    "canonical_name if it clearly matches; otherwise keep the raw value. For any country "
-    "value you find, call normalize_country before returning and set country to the exact "
-    "returned country name if one clearly matches. Return null for any field that cannot "
-    "be determined."
+    "value you find, including country, call find_normalization_candidates with the raw value "
+    "and matching "
+    "kind before returning. If an existing candidate is the same real-world entity, return "
+    'it as {"resolution":"matched","canonical_id": candidate.id,"name": '
+    'candidate.canonical_name}. Only return {"resolution":"proposed","canonical_id":null,'
+    '"name": raw_name} when no candidate represents the same entity. A country candidate ID is '
+    "its ISO country code; other candidate IDs are database UUIDs. Never invent a canonical "
+    "ID. Countries must always be matched to the ISO candidates or returned as null; never "
+    "propose a country. Return null for any field that cannot be determined."
 )
 _GEMINI_MODEL = "gemini-3.1-flash-lite"
 
@@ -33,8 +36,7 @@ class BeanPhotoDeps:
     parallel_api_key: str
     entity_storage: EntityStorage
     searched: bool = False
-    entity_candidate_names: dict[EntityKind, set[str]] | None = None
-    country_candidate_names: set[str] | None = None
+    normalization_candidates: dict[NormalizationKind, dict[str, str]] | None = None
 
 
 _bean_photo_agent = Agent[BeanPhotoDeps, BeanExtracted](
@@ -73,64 +75,78 @@ async def parallel_search(
     return search.model_dump(mode="json")
 
 
-def _candidate_names(deps: BeanPhotoDeps) -> dict[EntityKind, set[str]]:
-    if deps.entity_candidate_names is None:
-        deps.entity_candidate_names = {}
-    return deps.entity_candidate_names
+def _candidates_by_kind(deps: BeanPhotoDeps) -> dict[NormalizationKind, dict[str, str]]:
+    if deps.normalization_candidates is None:
+        deps.normalization_candidates = {}
+    return deps.normalization_candidates
 
 
 @_bean_photo_agent.tool
 async def find_normalization_candidates(
     ctx: RunContext[BeanPhotoDeps],
-    kind: EntityKind,
+    kind: NormalizationKind,
     value: str,
     limit: int = 8,
 ) -> list[NormalizationCandidate]:
     """Find canonical entity candidates for raw coffee metadata text."""
-    candidates = ctx.deps.entity_storage.candidates(kind=kind, value=value, limit=limit)
-    _candidate_names(ctx.deps)[kind] = {candidate.canonical_name for candidate in candidates}
+    if kind == "country":
+        candidates = [
+            NormalizationCandidate(
+                id=candidate.code,
+                kind="country",
+                canonical_name=candidate.name,
+                aliases=[],
+                score=candidate.score,
+                match_reason="country_match",
+            )
+            for candidate in country_candidates(value, limit=limit)
+        ]
+    else:
+        candidates = ctx.deps.entity_storage.candidates(kind=kind, value=value, limit=limit)
+    _candidates_by_kind(ctx.deps)[kind] = {
+        candidate.id: candidate.canonical_name for candidate in candidates
+    }
     return candidates
 
 
-@_bean_photo_agent.tool
-async def normalize_country(
-    ctx: RunContext[BeanPhotoDeps],
-    value: str,
-    limit: int = 8,
-) -> list[CountryCandidate]:
-    """Find canonical country candidates for raw country or origin text."""
-    candidates = country_candidates(value, limit=limit)
-    ctx.deps.country_candidate_names = {candidate.name for candidate in candidates}
-    return candidates
+def _validate_entity_resolution(
+    kind: NormalizationKind,
+    value: CanonicalSelection,
+    candidates_by_kind: dict[NormalizationKind, dict[str, str]] | None,
+) -> None:
+    candidates = (candidates_by_kind or {}).get(kind)
+    if candidates is None:
+        raise ModelRetry(f"Call find_normalization_candidates before returning {kind}.")
+    if value.resolution == "matched":
+        if value.canonical_id is None or candidates.get(value.canonical_id) != value.name:
+            raise ModelRetry(
+                f"Set {kind} canonical_id and name to one exact candidate, or propose a new entity."
+            )
+        return
+    if kind == "country":
+        raise ModelRetry("Countries must match the canonical ISO country list or be null.")
+    if value.canonical_id is not None:
+        raise ModelRetry(f"A proposed {kind} must have a null canonical_id.")
+    if value.name in candidates.values():
+        raise ModelRetry(f"{kind} matches an existing candidate; return it as matched.")
 
 
 @_bean_photo_agent.output_validator
 def require_parallel_search(ctx: RunContext[BeanPhotoDeps], output: BeanExtracted) -> BeanExtracted:
     if not ctx.deps.searched:
         raise ModelRetry("You must call parallel_search before returning the extraction.")
-    entity_fields: list[tuple[EntityKind, str | None]] = [
+    entity_fields: list[tuple[NormalizationKind, CanonicalSelection | None]] = [
         ("roaster", output.roaster),
         ("producer", output.producer),
         ("farm", output.farm),
+        ("country", output.country),
         ("variety", output.variety),
         ("process", output.process),
     ]
     for kind, value in entity_fields:
         if not value:
             continue
-        candidate_names = (ctx.deps.entity_candidate_names or {}).get(kind)
-        if candidate_names is None:
-            raise ModelRetry(f"Call find_normalization_candidates before returning {kind}.")
-        if candidate_names and value not in candidate_names:
-            raise ModelRetry(f"Set {kind} to exactly one returned candidate canonical_name.")
-    if output.country and ctx.deps.country_candidate_names is None:
-        raise ModelRetry("Call normalize_country before returning country.")
-    if (
-        output.country
-        and ctx.deps.country_candidate_names
-        and output.country not in ctx.deps.country_candidate_names
-    ):
-        raise ModelRetry("Set country to exactly one returned country name.")
+        _validate_entity_resolution(kind, value, ctx.deps.normalization_candidates)
     return output
 
 

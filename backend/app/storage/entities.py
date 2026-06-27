@@ -127,6 +127,25 @@ class EntityStorage:
                 )
         return sorted(scored, key=lambda candidate: candidate.score, reverse=True)[:limit]
 
+    def validate_references(self, references: dict[EntityKind, str | None]) -> None:
+        entity_ids = [entity_id for entity_id in references.values() if entity_id is not None]
+        if not entity_ids:
+            return
+        response = self._entities.select("id,kind").in_("id", entity_ids).execute()
+        kinds_by_id = {
+            str(row["id"]): str(row["kind"]) for row in cast(list[dict[str, Any]], response.data)
+        }
+        for expected_kind, entity_id in references.items():
+            if entity_id is None:
+                continue
+            actual_kind = kinds_by_id.get(entity_id)
+            if actual_kind is None:
+                raise ValueError(f"Unknown {expected_kind} entity ID")
+            if actual_kind != expected_kind:
+                raise ValueError(
+                    f"Entity {entity_id} is a {actual_kind}, not a {expected_kind}"
+                )
+
     def _with_aliases(self, rows: list[dict[str, Any]]) -> list[CanonicalEntity]:
         if not rows:
             return []

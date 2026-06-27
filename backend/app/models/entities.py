@@ -4,6 +4,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 EntityKind = Literal["roaster", "producer", "farm", "variety", "process"]
+NormalizationKind = Literal["roaster", "producer", "farm", "country", "variety", "process"]
 AliasSource = Literal["user", "llm", "import", "system"]
 
 
@@ -46,7 +47,7 @@ class EntityAliasCreate(BaseModel):
 
 class NormalizationCandidate(BaseModel):
     id: str
-    kind: EntityKind
+    kind: NormalizationKind
     canonical_name: str
     aliases: list[str]
     score: float

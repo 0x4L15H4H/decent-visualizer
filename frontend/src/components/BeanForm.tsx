@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  CountryCandidatePicker,
-  EntityCandidatePicker,
-} from "./NormalizationCandidatePicker";
+  useCallback,
+  useEffect,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from "react";
+import { CountryCandidatePicker, EntityCandidatePicker } from "./NormalizationCandidatePicker";
 import { PhotoExtractButton, type ExtractedBean } from "./PhotoExtractButton";
 import type { BeanFormValues } from "../types/bean";
 
@@ -11,6 +15,117 @@ const inputClass =
 
 const buttonClass =
   "rounded-md border border-border-default bg-bg-raised px-3 py-1.5 text-sm font-medium text-text-primary hover:bg-white/10 disabled:opacity-50";
+
+function mergeExtracted(prev: BeanFormValues, data: ExtractedBean): BeanFormValues {
+  return {
+    ...prev,
+    name: data.name ?? prev.name,
+    roaster: data.roaster?.name ?? prev.roaster,
+    roasterId: data.roaster ? data.roaster.canonical_id : prev.roasterId,
+    producer: data.producer?.name ?? prev.producer,
+    producerId: data.producer ? data.producer.canonical_id : prev.producerId,
+    farm: data.farm?.name ?? prev.farm,
+    farmId: data.farm ? data.farm.canonical_id : prev.farmId,
+    country: data.country?.name ?? prev.country,
+    countryCode: data.country ? data.country.canonical_id : prev.countryCode,
+    variety: data.variety?.name ?? prev.variety,
+    varietyId: data.variety ? data.variety.canonical_id : prev.varietyId,
+    process: data.process?.name ?? prev.process,
+    processId: data.process ? data.process.canonical_id : prev.processId,
+    notes: data.notes ?? prev.notes,
+  };
+}
+
+function findUnresolved(values: BeanFormValues) {
+  return [
+    ["roaster", values.roaster, values.roasterId],
+    ["producer", values.producer, values.producerId],
+    ["farm", values.farm, values.farmId],
+    ["country", values.country, values.countryCode],
+    ["variety", values.variety, values.varietyId],
+    ["process", values.process, values.processId],
+  ].find(([, name, id]) => Boolean(name) && !id);
+}
+
+function BeanIdentityFields({
+  values,
+  setValues,
+}: {
+  values: BeanFormValues;
+  setValues: Dispatch<SetStateAction<BeanFormValues>>;
+}) {
+  const entityField = (
+    kind: "roaster" | "producer" | "farm" | "variety" | "process",
+    idField: "roasterId" | "producerId" | "farmId" | "varietyId" | "processId",
+    required = false,
+  ) => (
+    <input
+      type="text"
+      placeholder={`${kind[0].toUpperCase()}${kind.slice(1)}${required ? " *" : ""}`}
+      required={required}
+      value={values[kind]}
+      onChange={(event) =>
+        setValues((prev) => ({ ...prev, [kind]: event.target.value, [idField]: null }))
+      }
+      className={inputClass}
+    />
+  );
+  const picker = (
+    kind: "roaster" | "producer" | "farm" | "variety" | "process",
+    idField: "roasterId" | "producerId" | "farmId" | "varietyId" | "processId",
+  ) => (
+    <EntityCandidatePicker
+      kind={kind}
+      value={values[kind]}
+      selectedId={values[idField]}
+      onSelect={(entity) =>
+        setValues((prev) => ({ ...prev, [kind]: entity.name, [idField]: entity.id }))
+      }
+    />
+  );
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <input
+          type="text"
+          placeholder="Name *"
+          required
+          value={values.name}
+          onChange={(event) => setValues((prev) => ({ ...prev, name: event.target.value }))}
+          className={inputClass}
+        />
+        {entityField("roaster", "roasterId", true)}
+        {entityField("producer", "producerId")}
+        {entityField("farm", "farmId")}
+        <input
+          type="text"
+          placeholder="Country"
+          value={values.country}
+          onChange={(event) =>
+            setValues((prev) => ({ ...prev, country: event.target.value, countryCode: null }))
+          }
+          className={inputClass}
+        />
+        {entityField("variety", "varietyId")}
+        {entityField("process", "processId")}
+      </div>
+      <div className="flex flex-col gap-1">
+        {picker("roaster", "roasterId")}
+        {picker("producer", "producerId")}
+        {picker("farm", "farmId")}
+        <CountryCandidatePicker
+          value={values.country}
+          selectedCode={values.countryCode}
+          onSelect={(country) =>
+            setValues((prev) => ({ ...prev, country: country.name, countryCode: country.code }))
+          }
+        />
+        {picker("variety", "varietyId")}
+        {picker("process", "processId")}
+      </div>
+    </>
+  );
+}
 
 export function BeanForm({
   initialValues,
@@ -39,22 +154,18 @@ export function BeanForm({
   }, []);
 
   const handleExtracted = useCallback((data: ExtractedBean) => {
-    setValues((prev) => ({
-      name: data.name ?? prev.name,
-      roaster: data.roaster ?? prev.roaster,
-      producer: data.producer ?? prev.producer,
-      farm: data.farm ?? prev.farm,
-      country: data.country ?? prev.country,
-      variety: data.variety ?? prev.variety,
-      process: data.process ?? prev.process,
-      notes: data.notes ?? prev.notes,
-    }));
+    setValues((prev) => mergeExtracted(prev, data));
   }, []);
 
   const handleSubmit = useCallback(
     async (e: FormEvent) => {
       e.preventDefault();
       setError(null);
+      const unresolved = findUnresolved(values);
+      if (unresolved) {
+        setError(`Select an existing ${unresolved[0]} or create it before saving.`);
+        return;
+      }
       setSubmitting(true);
       try {
         await onSubmit(values);
@@ -70,23 +181,7 @@ export function BeanForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       <PhotoExtractButton onExtracted={handleExtracted} />
-      <div className="grid grid-cols-2 gap-3">
-        <input type="text" placeholder="Name *" required value={values.name} onChange={(e) => updateValue("name", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Roaster *" required value={values.roaster} onChange={(e) => updateValue("roaster", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Producer" value={values.producer} onChange={(e) => updateValue("producer", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Farm" value={values.farm} onChange={(e) => updateValue("farm", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Country" value={values.country} onChange={(e) => updateValue("country", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Variety" value={values.variety} onChange={(e) => updateValue("variety", e.target.value)} className={inputClass} />
-        <input type="text" placeholder="Process" value={values.process} onChange={(e) => updateValue("process", e.target.value)} className={inputClass} />
-      </div>
-      <div className="flex flex-col gap-1">
-        <EntityCandidatePicker kind="roaster" value={values.roaster} onSelect={(value) => updateValue("roaster", value)} />
-        <EntityCandidatePicker kind="producer" value={values.producer} onSelect={(value) => updateValue("producer", value)} />
-        <EntityCandidatePicker kind="farm" value={values.farm} onSelect={(value) => updateValue("farm", value)} />
-        <CountryCandidatePicker value={values.country} onSelect={(value) => updateValue("country", value)} />
-        <EntityCandidatePicker kind="variety" value={values.variety} onSelect={(value) => updateValue("variety", value)} />
-        <EntityCandidatePicker kind="process" value={values.process} onSelect={(value) => updateValue("process", value)} />
-      </div>
+      <BeanIdentityFields values={values} setValues={setValues} />
       <textarea
         placeholder="Flavor notes"
         rows={2}

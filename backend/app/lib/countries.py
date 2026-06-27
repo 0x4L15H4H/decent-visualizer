@@ -92,3 +92,9 @@ def country_candidates(value: str, *, limit: int = 8) -> list[CountryCandidate]:
         if score >= 0.55:
             candidates.append(CountryCandidate(code=code, name=name, score=round(score, 4)))
     return sorted(candidates, key=lambda candidate: candidate.score, reverse=True)[:limit]
+
+
+def country_name(code: str | None) -> str | None:
+    if code is None:
+        return None
+    return _COUNTRIES.get(code.upper())

@@ -18,14 +18,14 @@ function statusText(kind: string, loading: boolean, empty: boolean) {
 
 function EntityCandidateChips({
   candidates,
-  selected,
+  selectedId,
   creating,
   createLabel,
   onCreate,
   onSelect,
 }: {
   candidates: NormalizationCandidate[];
-  selected: boolean;
+  selectedId: string | null;
   creating: boolean;
   createLabel: string;
   onCreate: () => void;
@@ -43,7 +43,7 @@ function EntityCandidateChips({
           {candidate.canonical_name}
         </button>
       ))}
-      {!selected && (
+      {!selectedId && (
         <button type="button" onClick={onCreate} disabled={creating} className={chipClass}>
           {creating ? "Creating..." : createLabel}
         </button>
@@ -66,10 +66,9 @@ function useEntityCandidates(kind: EntityKind, query: string) {
     const timer = window.setTimeout(() => {
       setLoading(true);
       api
-        .get(
-          `/api/normalization/candidates?kind=${kind}&q=${encodeURIComponent(query)}`,
-          { signal: controller.signal },
-        )
+        .get(`/api/normalization/candidates?kind=${kind}&q=${encodeURIComponent(query)}`, {
+          signal: controller.signal,
+        })
         .then((res) => (res.ok ? res.json() : []))
         .then((data) => setCandidates(data))
         .catch(() => {
@@ -92,31 +91,27 @@ function useEntityCandidates(kind: EntityKind, query: string) {
 export function EntityCandidatePicker({
   kind,
   value,
+  selectedId,
   onSelect,
 }: {
   kind: EntityKind;
   value: string;
-  onSelect: (value: string) => void;
+  selectedId: string | null;
+  onSelect: (entity: { id: string; name: string }) => void;
 }) {
   const [creating, setCreating] = useState(false);
   const query = value.trim();
   const { candidates, loading, setCandidates } = useEntityCandidates(kind, query);
   const selected = useMemo(
-    () => candidates.some((candidate) => candidate.canonical_name === query),
-    [candidates, query],
+    () => candidates.find((candidate) => candidate.id === selectedId),
+    [candidates, selectedId],
   );
 
   const selectCandidate = useCallback(
-    async (candidate: NormalizationCandidate) => {
-      onSelect(candidate.canonical_name);
-      if (query && query.toLowerCase() !== candidate.canonical_name.toLowerCase()) {
-        await api.post(`/api/entities/${candidate.id}/aliases`, {
-          alias: query,
-          source: "user",
-        });
-      }
+    (candidate: NormalizationCandidate) => {
+      onSelect({ id: candidate.id, name: candidate.canonical_name });
     },
-    [onSelect, query],
+    [onSelect],
   );
 
   const createEntity = useCallback(async () => {
@@ -126,7 +121,7 @@ export function EntityCandidatePicker({
       const res = await api.post("/api/entities", { kind, name: query });
       if (!res.ok) return;
       const entity: CanonicalEntity = await res.json();
-      onSelect(entity.name);
+      onSelect({ id: entity.id, name: entity.name });
       setCandidates((prev) => [
         {
           id: entity.id,
@@ -153,7 +148,7 @@ export function EntityCandidatePicker({
       {!loading && (
         <EntityCandidateChips
           candidates={candidates}
-          selected={selected}
+          selectedId={selected?.id ?? selectedId}
           creating={creating}
           createLabel={`Create ${kind}`}
           onCreate={() => void createEntity()}
@@ -166,10 +161,12 @@ export function EntityCandidatePicker({
 
 export function CountryCandidatePicker({
   value,
+  selectedCode,
   onSelect,
 }: {
   value: string;
-  onSelect: (value: string) => void;
+  selectedCode: string | null;
+  onSelect: (country: CountryCandidate) => void;
 }) {
   const [candidates, setCandidates] = useState<CountryCandidate[]>([]);
   const [loading, setLoading] = useState(false);
@@ -204,7 +201,7 @@ export function CountryCandidatePicker({
     };
   }, [query]);
 
-  if (!query) return null;
+  if (!query || selectedCode) return null;
 
   const message = statusText("country", loading, candidates.length === 0);
 
@@ -216,7 +213,7 @@ export function CountryCandidatePicker({
           <button
             key={candidate.code}
             type="button"
-            onClick={() => onSelect(candidate.name)}
+            onClick={() => onSelect(candidate)}
             className={chipClass}
           >
             {candidate.name}

@@ -44,7 +44,10 @@ def get_bean(bean_id: str, storage: BeanStorage = Depends(_storage)):
 
 @router.post("", response_model=Bean, status_code=201)
 def create_bean(data: BeanCreate, storage: BeanStorage = Depends(_storage)):
-    return storage.create(data)
+    try:
+        return storage.create(data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @router.post("/photo-extract/upload", response_model=BeanExtracted)
@@ -74,7 +77,10 @@ async def extract_from_photo(
 
 @router.patch("/{bean_id}", response_model=Bean)
 def update_bean(bean_id: str, data: BeanUpdate, storage: BeanStorage = Depends(_storage)):
-    bean = storage.update(bean_id, data)
+    try:
+        bean = storage.update(bean_id, data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     if bean is None:
         raise HTTPException(status_code=404, detail="Bean not found")
     return bean
