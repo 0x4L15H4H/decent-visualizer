@@ -81,12 +81,6 @@ async def parallel_search(
     return search.model_dump(mode="json")
 
 
-def _candidates_by_kind(deps: BeanPhotoDeps) -> dict[NormalizationKind, dict[str, str]]:
-    if deps.normalization_candidates is None:
-        deps.normalization_candidates = {}
-    return deps.normalization_candidates
-
-
 @_bean_photo_agent.tool
 async def find_normalization_candidates(
     ctx: RunContext[BeanPhotoDeps],
@@ -109,7 +103,9 @@ async def find_normalization_candidates(
         ]
     else:
         candidates = ctx.deps.entity_storage.candidates(kind=kind, value=value, limit=limit)
-    _candidates_by_kind(ctx.deps)[kind] = {
+    if ctx.deps.normalization_candidates is None:
+        ctx.deps.normalization_candidates = {}
+    ctx.deps.normalization_candidates[kind] = {
         candidate.id: candidate.canonical_name for candidate in candidates
     }
     return candidates
