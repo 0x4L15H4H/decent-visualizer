@@ -6,6 +6,7 @@ from app.dependencies import get_current_user
 from app.lib.photo_extract import get_bean_info_from_image
 from app.models.bean import Bean, BeanCreate, BeanExtracted, BeanUpdate
 from app.storage.beans import BeanStorage
+from app.storage.entities import EntityStorage
 
 router = APIRouter(prefix="/beans", tags=["beans"], dependencies=[Depends(get_current_user)])
 
@@ -14,6 +15,10 @@ _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 def _storage() -> BeanStorage:
     return BeanStorage(get_supabase())
+
+
+def _entity_storage() -> EntityStorage:
+    return EntityStorage(get_supabase())
 
 
 @router.get("", response_model=list[Bean])
@@ -39,11 +44,17 @@ def get_bean(bean_id: str, storage: BeanStorage = Depends(_storage)):
 
 @router.post("", response_model=Bean, status_code=201)
 def create_bean(data: BeanCreate, storage: BeanStorage = Depends(_storage)):
-    return storage.create(data)
+    try:
+        return storage.create(data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @router.post("/photo-extract/upload", response_model=BeanExtracted)
-async def extract_from_photo(file: UploadFile):
+async def extract_from_photo(
+    file: UploadFile,
+    entity_storage: EntityStorage = Depends(_entity_storage),
+):
     settings = get_settings()
     if not settings.gemini_api_key or not settings.parallel_api_key:
         raise HTTPException(status_code=503, detail="Photo extraction not configured")
@@ -55,6 +66,7 @@ async def extract_from_photo(file: UploadFile):
     result = await get_bean_info_from_image(
         gemini_api_key=settings.gemini_api_key,
         parallel_api_key=settings.parallel_api_key,
+        entity_storage=entity_storage,
         image_bytes=image_bytes,
         mime_type=file.content_type or "image/jpeg",
     )
@@ -65,7 +77,10 @@ async def extract_from_photo(file: UploadFile):
 
 @router.patch("/{bean_id}", response_model=Bean)
 def update_bean(bean_id: str, data: BeanUpdate, storage: BeanStorage = Depends(_storage)):
-    bean = storage.update(bean_id, data)
+    try:
+        bean = storage.update(bean_id, data)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     if bean is None:
         raise HTTPException(status_code=404, detail="Bean not found")
     return bean

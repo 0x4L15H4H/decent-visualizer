@@ -15,7 +15,7 @@ export function apiRequest(path: string, init?: RequestInit) {
 }
 
 export const api = {
-  get: (path: string) => apiRequest(path),
+  get: (path: string, init?: RequestInit) => apiRequest(path, init),
   post: (path: string, body?: unknown) =>
     apiRequest(path, {
       method: "POST",

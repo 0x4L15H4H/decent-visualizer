@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.config import get_settings
-from app.routers import auth, beans, health, shots
+from app.routers import auth, beans, entities, health, shots
 from app.routers import settings as settings_router
 
 settings = get_settings()
@@ -26,4 +26,6 @@ app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(shots.router, prefix="/api")
 app.include_router(beans.router, prefix="/api")
+app.include_router(entities.router, prefix="/api")
+app.include_router(entities.normalization_router, prefix="/api")
 app.include_router(settings_router.router, prefix="/api")

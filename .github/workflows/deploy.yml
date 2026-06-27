@@ -18,11 +18,13 @@ jobs:
 
       # ── Backend ──
       - uses: astral-sh/setup-uv@v5
-      - name: Backend lint
+      - name: Backend lint, typecheck & test
         run: |
           uv sync --frozen
           uv run ruff check .
           uv run ruff format --check .
+          uv run basedpyright
+          uv run pytest
         working-directory: backend
 
       # ── Frontend ──

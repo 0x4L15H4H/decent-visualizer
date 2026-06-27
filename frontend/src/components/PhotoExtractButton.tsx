@@ -3,16 +3,26 @@ import { api } from "../api";
 
 export interface ExtractedBean {
   name?: string | null;
-  roaster?: string | null;
-  producer?: string | null;
-  farm?: string | null;
-  country?: string | null;
-  variety?: string | null;
-  process?: string | null;
+  roaster?: CanonicalSelection | null;
+  producer?: CanonicalSelection | null;
+  farm?: CanonicalSelection | null;
+  country?: CanonicalSelection | null;
+  variety?: CanonicalSelection | null;
+  process?: CanonicalSelection | null;
   notes?: string | null;
 }
 
-export function PhotoExtractButton({ onExtracted }: { onExtracted: (data: ExtractedBean) => void }) {
+interface CanonicalSelection {
+  resolution: "matched" | "proposed";
+  canonical_id: string | null;
+  name: string;
+}
+
+export function PhotoExtractButton({
+  onExtracted,
+}: {
+  onExtracted: (data: ExtractedBean) => void;
+}) {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
