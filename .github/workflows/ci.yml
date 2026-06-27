@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Lint, typecheck & test
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run basedpyright
+          uv run pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Lint, typecheck & test
+        working-directory: frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm typecheck
+          pnpm test

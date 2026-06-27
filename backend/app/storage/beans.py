@@ -42,9 +42,7 @@ class BeanStorage:
 
     def list(self) -> list[Bean]:
         response = self._table.select(_BEAN_SELECT).order("created_at", desc=True).execute()
-        return [
-            self._to_model(row) for row in cast(list[dict[str, Any]], response.data)
-        ]
+        return [self._to_model(row) for row in cast(list[dict[str, Any]], response.data)]
 
     def get(self, bean_id: str) -> Bean | None:
         response = self._table.select(_BEAN_SELECT).eq("id", bean_id).execute()

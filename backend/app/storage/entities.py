@@ -142,9 +142,7 @@ class EntityStorage:
             if actual_kind is None:
                 raise ValueError(f"Unknown {expected_kind} entity ID")
             if actual_kind != expected_kind:
-                raise ValueError(
-                    f"Entity {entity_id} is a {actual_kind}, not a {expected_kind}"
-                )
+                raise ValueError(f"Entity {entity_id} is a {actual_kind}, not a {expected_kind}")
 
     def _with_aliases(self, rows: list[dict[str, Any]]) -> list[CanonicalEntity]:
         if not rows:
