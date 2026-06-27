@@ -1,6 +1,19 @@
 # Decent Visualizer
 
-A split-stack app: Python/FastAPI backend on GCE, React/Vite frontend on Cloudflare Pages, Supabase for the database. Features session-based auth, coffee bean management with Gemini-powered photo extraction, shot tracking/visualization, and user settings.
+A split-stack coffee shot tracker with a Python/FastAPI backend on GCE, a
+React/Vite frontend on Cloudflare Pages, and Supabase Postgres for persistence.
+
+## Features
+
+- Session-based signup and login for authenticated APIs
+- Shot CRUD API for Decent espresso upload payloads; the shot-history frontend
+  is currently a placeholder
+- Bean library with create and edit workflows
+- Canonical coffee metadata for roasters, producers, farms, varieties, and
+  processes, plus ISO country matching
+- Gemini-powered bean-package photo extraction, grounded with Parallel web
+  search and reviewed against canonical entities before saving
+- Application settings, including signup control
 
 ## Architecture
 
@@ -23,15 +36,21 @@ Browser
 ```
 
 - **Frontend**: React/Vite SPA deployed to Cloudflare Pages, served from Cloudflare's CDN with no origin server.
-- **Backend**: Python/FastAPI running in Docker on a GCE `e2-micro` VM (GCP Always Free tier). Not exposed on any public port.
-- **Tunnel**: `cloudflared` runs on the VM and dials out to Cloudflare, which routes `api.<domain>` to `localhost` on the VM. The VM firewall stays fully closed and its IP is never public.
+- **Backend**: Python/FastAPI running in Docker on a GCE `e2-micro` VM (GCP Always Free tier). The API binds to the VM's loopback interface and is not exposed on a public HTTP port.
+- **Tunnel**: `cloudflared` runs on the VM and dials out to Cloudflare, which routes `api.<domain>` to `localhost` on the VM. The VM has a static external IP for SSH deployments, but no inbound HTTP firewall rule.
 - **Database**: Supabase (managed Postgres). The backend connects using the service role key; the frontend never touches the database directly. Migrations live in `supabase/migrations/` and are applied in CI via `supabase db push`.
+- **Normalization**: Beans reference canonical entities by UUID and countries by ISO 3166-1 alpha-2 code. Candidate lookup uses canonical names and curated aliases; photo extraction must select a known candidate or propose a user-reviewable entity.
 - **Secrets**: held in Infisical. The backend authenticates with the VM's GCE instance identity and pulls its secrets at startup, so nothing sensitive is written to the VM or shipped through CI.
 - **Logging**: Docker containers send logs directly to Google Cloud Logging via the `gcplogs` driver.
 
 ## Deployment
 
-Deployment runs on GitHub Actions (`.github/workflows/deploy.yml`) on push to `main` or manual `workflow_dispatch`. Jobs: `test`, `infra` (OpenTofu), `migrate` (Supabase migrations), `vm` (backend), and `frontend` (Cloudflare Pages). All jobs run on every push.
+The single `.github/workflows/deploy.yml` workflow runs backend and frontend
+checks on pull requests, pushes to `main`, and manual `workflow_dispatch`
+runs. Infrastructure and deployment jobs are skipped on pull requests. After
+checks pass on a deployment run, the remaining jobs are `infra` (OpenTofu),
+`migrate` (Supabase migrations), `vm` (backend), and `frontend` (Cloudflare
+Pages).
 
 ### Prerequisites
 
@@ -109,10 +128,52 @@ Push to `main`. The `infra` job provisions everything with OpenTofu, including w
 
 ## Local development
 
+Prerequisites:
+
+- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
+- Node.js 22 and pnpm 11
+- Docker and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+
+Install dependencies once:
+
 ```bash
-make dev       # starts frontend, backend, and local Supabase in parallel
-make lint      # run linters
-make format    # auto-format code
+cd backend && uv sync
+cd ../frontend && pnpm install
+cd ..
 ```
 
-Requires a local Supabase CLI install. Local Supabase credentials are in `config/dev/backend.json`.
+Start the frontend, backend, and local Supabase stack:
+
+```bash
+make dev
+```
+
+The frontend runs at `http://localhost:5173`, the backend at
+`http://localhost:8000`, and Supabase uses its standard local ports. Local
+Supabase credentials are committed in `config/dev/backend.json`; they are the
+well-known local-only keys emitted by the Supabase CLI.
+
+Bean photo extraction is optional in development. Set `GEMINI_API_KEY` and
+`PARALLEL_API_KEY` in the backend environment to enable it.
+
+Run local checks and formatting:
+
+```bash
+make lint
+make format
+(cd backend && make typecheck test)
+(cd frontend && pnpm typecheck && pnpm test)
+```
+
+CI also checks formatting without modifying files.
+
+## Repository layout
+
+| Path | Purpose |
+|---|---|
+| `frontend/` | React 19, Vite, and Tailwind frontend |
+| `backend/` | FastAPI application, storage layer, and tests |
+| `supabase/migrations/` | Database schema and migrations |
+| `infra/` | OpenTofu modules for GCE, Cloudflare, Supabase, and Infisical |
+| `config/` | Committed non-secret development and production configuration |
+| `scripts/` | One-time GCP setup and deployment helpers |

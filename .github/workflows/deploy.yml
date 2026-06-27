@@ -1,12 +1,12 @@
-name: Deploy
+name: CI / Deploy
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
@@ -47,7 +47,11 @@ jobs:
   infra:
     name: Infra
     needs: test
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       supabase_project_ref: ${{ steps.tofu-output.outputs.supabase_project_ref }}
 
@@ -100,6 +104,9 @@ jobs:
     name: Run migrations
     needs: infra
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -132,6 +139,9 @@ jobs:
     name: Deploy VM
     needs: migrate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -184,6 +194,9 @@ jobs:
     name: Deploy frontend
     needs: migrate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
