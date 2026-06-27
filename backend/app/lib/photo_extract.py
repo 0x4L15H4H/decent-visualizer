@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from textwrap import dedent
 from typing import Any
 
 from parallel import AsyncParallel
@@ -11,23 +12,28 @@ from app.models.bean import BeanExtracted, CanonicalSelection
 from app.models.entities import NormalizationCandidate, NormalizationKind
 from app.storage.entities import EntityStorage
 
-_EXTRACT_PROMPT = (
-    "Analyze this photo of coffee bean packaging. You must call the parallel_search tool "
-    "before returning the final extraction. Search for the roaster and coffee name visible "
-    "on the packaging. After receiving search results, extract visible information from the "
-    "photo and use the search results to fill details not visible in the photo. Only use "
-    'search results when they clearly refer to the same coffee. "notes" should capture '
-    "flavor/tasting notes if listed. For any roaster, producer, farm, variety, or process "
-    "value you find, including country, call find_normalization_candidates with the raw value "
-    "and matching "
-    "kind before returning. If an existing candidate is the same real-world entity, return "
-    'it as {"resolution":"matched","canonical_id": candidate.id,"name": '
-    'candidate.canonical_name}. Only return {"resolution":"proposed","canonical_id":null,'
-    '"name": raw_name} when no candidate represents the same entity. A country candidate ID is '
-    "its ISO country code; other candidate IDs are database UUIDs. Never invent a canonical "
-    "ID. Countries must always be matched to the ISO candidates or returned as null; never "
-    "propose a country. Return null for any field that cannot be determined."
-)
+_EXTRACT_PROMPT = dedent(
+    """
+    Analyze this photo of coffee bean packaging. You must call the parallel_search tool
+    before returning the final extraction. Search for the roaster and coffee name visible
+    on the packaging. After receiving search results, extract visible information from the
+    photo and use the search results to fill details not visible in the photo. Only use
+    search results when they clearly refer to the same coffee. "notes" should capture
+    flavor/tasting notes if listed.
+
+    For any roaster, producer, farm, variety, process, or country value you find, call
+    find_normalization_candidates with the raw value and matching kind before returning.
+    If an existing candidate is the same real-world entity, return it as
+    {"resolution":"matched","canonical_id":candidate.id,"name":candidate.canonical_name}.
+    Only return {"resolution":"proposed","canonical_id":null,"name":raw_name} when no
+    candidate represents the same entity.
+
+    A country candidate ID is its ISO country code; other candidate IDs are database UUIDs.
+    Never invent a canonical ID. Countries must always be matched to the ISO candidates or
+    returned as null; never propose a country. Return null for any field that cannot be
+    determined.
+    """
+).strip()
 _GEMINI_MODEL = "gemini-3.1-flash-lite"
 
 
