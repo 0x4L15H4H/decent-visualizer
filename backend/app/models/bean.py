@@ -4,21 +4,25 @@ from typing import Literal
 from pydantic import BaseModel
 
 
+class EntityReference(BaseModel):
+    id: str
+    name: str
+
+
+class CountryReference(BaseModel):
+    code: str
+    name: str
+
+
 class Bean(BaseModel):
     id: str
     name: str
-    roaster_id: str
-    roaster: str
-    producer_id: str | None = None
-    producer: str | None = None
-    farm_id: str | None = None
-    farm: str | None = None
-    country_code: str | None = None
-    country: str | None = None
-    variety_id: str | None = None
-    variety: str | None = None
-    process_id: str | None = None
-    process: str | None = None
+    roaster: EntityReference
+    producer: EntityReference | None = None
+    farm: EntityReference | None = None
+    country: CountryReference | None = None
+    variety: EntityReference | None = None
+    process: EntityReference | None = None
     roast_level: str | None = None
     roast_date: datetime | None = None
     notes: str | None = None

@@ -31,21 +31,25 @@ function createBeanColumns(onEdit: (bean: Bean) => void) {
       header: "Name",
       cell: (info) => info.getValue(),
     }),
-    col.accessor("roaster", {
+    col.accessor((bean) => bean.roaster.name, {
+      id: "roaster",
       header: "Roaster",
       cell: (info) => info.getValue(),
     }),
-    col.accessor("country", {
+    col.accessor((bean) => bean.country?.name ?? "", {
+      id: "country",
       header: "Country",
-      cell: (info) => info.getValue() ?? "",
+      cell: (info) => info.getValue(),
     }),
-    col.accessor("variety", {
+    col.accessor((bean) => bean.variety?.name ?? "", {
+      id: "variety",
       header: "Variety",
-      cell: (info) => info.getValue() ?? "",
+      cell: (info) => info.getValue(),
     }),
-    col.accessor("process", {
+    col.accessor((bean) => bean.process?.name ?? "", {
+      id: "process",
       header: "Process",
-      cell: (info) => info.getValue() ?? "",
+      cell: (info) => info.getValue(),
     }),
     col.accessor("notes", {
       header: "Notes",
@@ -106,7 +110,10 @@ export function BeanTable({ data, onEdit }: { data: Bean[]; onEdit: (bean: Bean)
           </thead>
           <tbody>
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-b border-border-subtle last:border-b-0 hover:bg-bg-raised">
+              <tr
+                key={row.id}
+                className="border-b border-border-subtle last:border-b-0 hover:bg-bg-raised"
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td key={cell.id} className="px-4 py-2 text-text-secondary">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -123,10 +130,20 @@ export function BeanTable({ data, onEdit }: { data: Bean[]; onEdit: (bean: Bean)
             Page {pagination.pageIndex + 1} of {pageCount}
           </span>
           <div className="flex gap-2">
-            <button type="button" disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()} className={paginationBtnClass}>
+            <button
+              type="button"
+              disabled={!table.getCanPreviousPage()}
+              onClick={() => table.previousPage()}
+              className={paginationBtnClass}
+            >
               Previous
             </button>
-            <button type="button" disabled={!table.getCanNextPage()} onClick={() => table.nextPage()} className={paginationBtnClass}>
+            <button
+              type="button"
+              disabled={!table.getCanNextPage()}
+              onClick={() => table.nextPage()}
+              className={paginationBtnClass}
+            >
               Next
             </button>
           </div>

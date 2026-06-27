@@ -1,18 +1,22 @@
+export interface EntityReference {
+  id: string;
+  name: string;
+}
+
+export interface CountryReference {
+  code: string;
+  name: string;
+}
+
 export interface Bean {
   id: string;
   name: string;
-  roaster_id: string;
-  roaster: string;
-  producer_id: string | null;
-  producer: string | null;
-  farm_id: string | null;
-  farm: string | null;
-  country_code: string | null;
-  country: string | null;
-  variety_id: string | null;
-  variety: string | null;
-  process_id: string | null;
-  process: string | null;
+  roaster: EntityReference;
+  producer: EntityReference | null;
+  farm: EntityReference | null;
+  country: CountryReference | null;
+  variety: EntityReference | null;
+  process: EntityReference | null;
   notes: string | null;
   created_at: string;
 }
@@ -54,18 +58,18 @@ export const emptyBeanFormValues: BeanFormValues = {
 export function valuesFromBean(bean: Bean): BeanFormValues {
   return {
     name: bean.name,
-    roaster: bean.roaster,
-    roasterId: bean.roaster_id,
-    producer: bean.producer ?? "",
-    producerId: bean.producer_id,
-    farm: bean.farm ?? "",
-    farmId: bean.farm_id,
-    country: bean.country ?? "",
-    countryCode: bean.country_code,
-    variety: bean.variety ?? "",
-    varietyId: bean.variety_id,
-    process: bean.process ?? "",
-    processId: bean.process_id,
+    roaster: bean.roaster.name,
+    roasterId: bean.roaster.id,
+    producer: bean.producer?.name ?? "",
+    producerId: bean.producer?.id ?? null,
+    farm: bean.farm?.name ?? "",
+    farmId: bean.farm?.id ?? null,
+    country: bean.country?.name ?? "",
+    countryCode: bean.country?.code ?? null,
+    variety: bean.variety?.name ?? "",
+    varietyId: bean.variety?.id ?? null,
+    process: bean.process?.name ?? "",
+    processId: bean.process?.id ?? null,
     notes: bean.notes ?? "",
   };
 }

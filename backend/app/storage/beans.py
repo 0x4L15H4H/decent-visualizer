@@ -1,6 +1,4 @@
-import builtins
 import uuid
-from collections.abc import Sequence
 from typing import Any, cast
 
 from postgrest._sync.request_builder import SyncRequestBuilder
@@ -18,34 +16,51 @@ _ENTITY_FIELDS: dict[EntityKind, str] = {
     "variety": "variety_id",
     "process": "process_id",
 }
+_BEAN_SELECT = """
+    id,
+    name,
+    country_code,
+    roast_level,
+    roast_date,
+    notes,
+    created_at,
+    roaster:canonical_entities!beans_roaster_id_fkey(id,name),
+    producer:canonical_entities!beans_producer_id_fkey(id,name),
+    farm:canonical_entities!beans_farm_id_fkey(id,name),
+    variety:canonical_entities!beans_variety_id_fkey(id,name),
+    process:canonical_entities!beans_process_id_fkey(id,name)
+"""
 
 
 class BeanStorage:
     _table: SyncRequestBuilder
-    _entity_table: SyncRequestBuilder
     _entity_storage: EntityStorage
 
     def __init__(self, client: Client) -> None:
         self._table = client.table("beans")
-        self._entity_table = client.table("canonical_entities")
         self._entity_storage = EntityStorage(client)
 
     def list(self) -> list[Bean]:
-        response = self._table.select("*").order("created_at", desc=True).execute()
-        return self._to_models(cast(list[dict[str, Any]], response.data))
+        response = self._table.select(_BEAN_SELECT).order("created_at", desc=True).execute()
+        return [
+            self._to_model(row) for row in cast(list[dict[str, Any]], response.data)
+        ]
 
     def get(self, bean_id: str) -> Bean | None:
-        response = self._table.select("*").eq("id", bean_id).execute()
+        response = self._table.select(_BEAN_SELECT).eq("id", bean_id).execute()
         if not response.data:
             return None
-        return self._to_models(cast(list[dict[str, Any]], response.data))[0]
+        return self._to_model(cast(dict[str, Any], response.data[0]))
 
     def create(self, data: BeanCreate) -> Bean:
         self._validate_entity_ids(data.model_dump())
         bean_id = str(uuid.uuid4())
         row = {"id": bean_id, **data.model_dump(mode="json")}
-        response = self._table.insert(row).execute()
-        return self._to_models(cast(list[dict[str, Any]], response.data))[0]
+        self._table.insert(row).execute()
+        bean = self.get(bean_id)
+        if bean is None:
+            raise RuntimeError("Created bean could not be read")
+        return bean
 
     def update(self, bean_id: str, data: BeanUpdate) -> Bean | None:
         updates = data.model_dump(mode="json", exclude_unset=True)
@@ -55,7 +70,7 @@ class BeanStorage:
         response = self._table.update(updates).eq("id", bean_id).execute()
         if not response.data:
             return None
-        return self._to_models(cast(list[dict[str, Any]], response.data))[0]
+        return self.get(bean_id)
 
     def delete(self, bean_id: str) -> bool:
         response = self._table.delete().eq("id", bean_id).execute()
@@ -74,28 +89,12 @@ class BeanStorage:
         }
         self._entity_storage.validate_references(references)
 
-    def _to_models(self, rows: Sequence[dict[str, Any]]) -> builtins.list[Bean]:
-        typed_rows = builtins.list(rows)
-        entity_ids = {
-            str(row[field])
-            for row in typed_rows
-            for field in _ENTITY_FIELDS.values()
-            if row.get(field)
-        }
-        names_by_id: dict[str, str] = {}
-        if entity_ids:
-            response = self._entity_table.select("id,name").in_("id", list(entity_ids)).execute()
-            names_by_id = {
-                str(row["id"]): str(row["name"])
-                for row in cast(list[dict[str, Any]], response.data)
-            }
-
-        beans: list[Bean] = []
-        for row in typed_rows:
-            hydrated = dict(row)
-            for kind, field in _ENTITY_FIELDS.items():
-                entity_id = hydrated.get(field)
-                hydrated[kind] = names_by_id.get(str(entity_id)) if entity_id else None
-            hydrated["country"] = country_name(cast(str | None, hydrated.get("country_code")))
-            beans.append(Bean.model_validate(hydrated))
-        return beans
+    @staticmethod
+    def _to_model(row: dict[str, Any]) -> Bean:
+        country_code = cast(str | None, row.get("country_code"))
+        country = (
+            {"code": country_code, "name": country_name(country_code)}
+            if country_code is not None
+            else None
+        )
+        return Bean.model_validate({**row, "country": country})
