@@ -124,11 +124,7 @@ export function CanonicalTypeahead({
           {label}
           {required ? " *" : ""}
         </Combobox.Label>
-        <Combobox.InputGroup
-          className={`flex h-9 min-w-0 items-center rounded-md border bg-bg-raised focus-within:ring-1 focus-within:ring-accent ${
-            selectedId ? "border-success/60" : "border-border-default"
-          }`}
-        >
+        <Combobox.InputGroup className="flex h-9 min-w-0 items-center rounded-md border border-border-default bg-bg-raised focus-within:ring-1 focus-within:ring-accent">
           <Combobox.Input
             required={required}
             placeholder={`Search ${label.toLowerCase()}`}
@@ -137,11 +133,6 @@ export function CanonicalTypeahead({
           {(loading || creating) && (
             <span className="px-2 text-xs text-text-muted" aria-hidden="true">
               ...
-            </span>
-          )}
-          {!loading && !creating && selectedId && (
-            <span className="px-2 text-sm text-success" title="Canonical entity selected">
-              ✓
             </span>
           )}
           <Combobox.Icon className="pr-3 text-xs text-text-muted">⌄</Combobox.Icon>

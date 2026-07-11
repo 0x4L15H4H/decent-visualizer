@@ -2,12 +2,12 @@ import uuid
 from typing import Any, cast
 
 from postgrest._sync.request_builder import SyncRequestBuilder
+from supabase import Client
 
 from app.lib.countries import country_name
-from app.models.bean import Bean, BeanCreate, BeanUpdate
+from app.models.bean import Bean, BeanCreate, BeanPage, BeanUpdate
 from app.models.entities import EntityKind
 from app.storage.entities import EntityStorage
-from supabase import Client
 
 _ENTITY_FIELDS: dict[EntityKind, str] = {
     "roaster": "roaster_id",
@@ -33,16 +33,55 @@ _BEAN_SELECT = """
 
 
 class BeanStorage:
+    _client: Client
     _table: SyncRequestBuilder
     _entity_storage: EntityStorage
 
     def __init__(self, client: Client) -> None:
+        self._client = client
         self._table = client.table("beans")
         self._entity_storage = EntityStorage(client)
 
-    def list(self) -> list[Bean]:
-        response = self._table.select(_BEAN_SELECT).order("created_at", desc=True).execute()
-        return [self._to_model(row) for row in cast(list[dict[str, Any]], response.data)]
+    def list_page(
+        self,
+        *,
+        page: int,
+        page_size: int,
+        q: str | None = None,
+        sort_by: str = "created_at",
+        descending: bool = True,
+    ) -> BeanPage:
+        offset = (page - 1) * page_size
+        search_response = self._client.rpc(
+            "search_bean_ids",
+            {
+                "p_query": q,
+                "p_offset": offset,
+                "p_limit": page_size,
+                "p_sort_by": sort_by,
+                "p_desc": descending,
+            },
+        ).execute()
+        search_rows = cast(list[dict[str, Any]], search_response.data)
+        ids = [str(row["id"]) for row in search_rows if row["id"] is not None]
+        total = int(search_rows[0]["total_count"]) if search_rows else 0
+        if not ids:
+            return BeanPage(
+                items=[],
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
+
+        bean_response = self._table.select(_BEAN_SELECT).in_("id", ids).execute()
+        bean_rows = cast(list[dict[str, Any]], bean_response.data)
+        beans_by_id = {str(row["id"]): self._to_model(row) for row in bean_rows}
+        return BeanPage(
+            items=[beans_by_id[bean_id] for bean_id in ids if bean_id in beans_by_id],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
 
     def get(self, bean_id: str) -> Bean | None:
         response = self._table.select(_BEAN_SELECT).eq("id", bean_id).execute()

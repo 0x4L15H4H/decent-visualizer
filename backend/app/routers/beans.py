@@ -1,10 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from typing import Annotated, Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from app.config import get_settings
 from app.db import get_supabase
 from app.dependencies import get_current_user
 from app.lib.photo_extract import get_bean_info_from_image
-from app.models.bean import Bean, BeanCreate, BeanExtracted, BeanUpdate
+from app.models.bean import Bean, BeanCreate, BeanExtracted, BeanPage, BeanUpdate
 from app.storage.beans import BeanStorage
 from app.storage.entities import EntityStorage
 
@@ -21,9 +23,24 @@ def _entity_storage() -> EntityStorage:
     return EntityStorage(get_supabase())
 
 
-@router.get("", response_model=list[Bean])
-def list_beans(storage: BeanStorage = Depends(_storage)):
-    return storage.list()
+@router.get("", response_model=BeanPage)
+def list_beans(
+    page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    q: Annotated[str | None, Query(max_length=200)] = None,
+    sort_by: Literal["name", "roaster", "country", "variety", "process", "notes", "created_at"] = (
+        "created_at"
+    ),
+    sort_dir: Literal["asc", "desc"] = "desc",
+    storage: BeanStorage = Depends(_storage),
+):
+    return storage.list_page(
+        page=page,
+        page_size=page_size,
+        q=q,
+        sort_by=sort_by,
+        descending=sort_dir == "desc",
+    )
 
 
 @router.get("/photo-extract/enabled")

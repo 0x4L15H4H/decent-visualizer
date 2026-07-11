@@ -29,6 +29,13 @@ class Bean(BaseModel):
     created_at: datetime
 
 
+class BeanPage(BaseModel):
+    items: list[Bean]
+    total: int
+    page: int
+    page_size: int
+
+
 class BeanCreate(BaseModel):
     name: str
     roaster_id: str
