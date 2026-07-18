@@ -174,7 +174,9 @@ jobs:
       - name: Read Cloudflare tunnel token
         run: |
           tofu init
-          echo "CLOUDFLARED_TOKEN=$(tofu output -raw cloudflare_tunnel_token)" >> "$GITHUB_ENV"
+          tunnel_token="$(tofu output -raw cloudflare_tunnel_token)"
+          echo "::add-mask::$tunnel_token"
+          echo "CLOUDFLARED_TOKEN=$tunnel_token" >> "$GITHUB_ENV"
         working-directory: infra
 
       - name: Prepare deployment credentials
@@ -183,6 +185,9 @@ jobs:
           printf '%s\n' "$oci_ssh_private_key" > "$key_path"
           chmod 600 "$key_path"
           echo "OCI_SSH_KEY=$key_path" >> "$GITHUB_ENV"
+
+      - name: Set up QEMU for ARM64 builds
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

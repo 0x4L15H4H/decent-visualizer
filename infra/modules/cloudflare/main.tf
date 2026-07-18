@@ -27,6 +27,12 @@ resource "cloudflare_pages_project" "frontend" {
 # 32-byte base64 secret that identifies the tunnel.
 resource "random_id" "tunnel_secret" {
   byte_length = 32
+
+  # Rotate after the previous token was exposed in CI logs. Change this value
+  # deliberately for any future credential rotation.
+  keepers = {
+    rotation = "2026-07-18-v2"
+  }
 }
 
 resource "cloudflare_zero_trust_tunnel_cloudflared" "api" {
