@@ -3,8 +3,8 @@ FROM python:3.12-slim
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Infisical CLI: the entrypoint uses it to pull secrets at runtime via the VM's
-# GCE instance identity, so no static credentials are baked in or shipped.
+# Infisical CLI: the entrypoint pulls runtime secrets using a least-privilege
+# machine identity delivered by CI, so no credentials are baked into the image.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl bash ca-certificates jq \
   && curl -1sLf 'https://artifacts-cli.infisical.com/setup.deb.sh' | bash \

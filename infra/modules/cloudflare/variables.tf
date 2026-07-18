@@ -9,9 +9,9 @@ variable "zone_id" {
 }
 
 variable "backend_port" {
-  description = "Port the backend listens on, reached by cloudflared over the VM's loopback"
+  description = "Port the backend listens on, reached by cloudflared over the private Docker network"
   type        = number
-  default     = 80
+  default     = 8000
 }
 
 variable "project_name" {

@@ -3,11 +3,11 @@
 #
 # Usage:
 #   ./scripts/deploy.sh              # full deploy (backend + frontend)
-#   ./scripts/deploy.sh --backend    # backend only (Docker → GCE)
+#   ./scripts/deploy.sh --backend    # backend only (Docker → external VM)
 #   ./scripts/deploy.sh --frontend   # frontend only (build → Cloudflare Pages)
 #
 # Prerequisites:
-#   gcloud CLI authenticated
+#   OCI_SSH_KEY pointing to the private deployment SSH key
 #   Docker running locally
 #   pnpm installed locally
 #   wrangler installed (npm i -g wrangler) or npx will handle it
@@ -23,10 +23,9 @@ INFRA_CONFIG="$ROOT_DIR/config/prod/infra.json"
 
 # ── Resolve infrastructure from Terraform outputs ──────────────────────
 
-GCP_PROJECT="$(tofu -chdir="$INFRA_DIR" output -raw gcp_project_id)"
-GCP_ZONE="$(tofu -chdir="$INFRA_DIR" output -raw gcp_zone)"
-VM_IP="$(tofu -chdir="$INFRA_DIR" output -raw vm_external_ip)"
-VM_NAME="$(jq -r '.project_slug' "$INFRA_CONFIG")"
+VM_IP="$(jq -r '.external_vm.host' "$INFRA_CONFIG")"
+VM_USER="$(jq -r '.external_vm.ssh_user' "$INFRA_CONFIG")"
+OCI_SSH_KEY="${OCI_SSH_KEY:?Set OCI_SSH_KEY to the private OCI deployment SSH key}"
 PAGES_PROJECT="$(jq -r '.cloudflare.pages_project' "$INFRA_CONFIG")"
 BACKEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw backend_url)"
 FRONTEND_URL="$(tofu -chdir="$INFRA_DIR" output -raw frontend_url)"
@@ -38,18 +37,16 @@ echo "→ Frontend: $FRONTEND_URL"
 
 scp_to_vm() {
   local src="$1" dest="$2"
-  gcloud compute scp --quiet \
-    --project="$GCP_PROJECT" --zone="$GCP_ZONE" \
-    "$src" "appuser@${VM_NAME}:$dest"
+  scp -i "$OCI_SSH_KEY" -o BatchMode=yes \
+    "$src" "${VM_USER}@${VM_IP}:$dest"
 }
 
 ssh_vm() {
-  gcloud compute ssh --quiet \
-    --project="$GCP_PROJECT" --zone="$GCP_ZONE" \
-    "appuser@${VM_NAME}" -- "$@"
+  ssh -i "$OCI_SSH_KEY" -o BatchMode=yes \
+    "${VM_USER}@${VM_IP}" "$@"
 }
 
-# ── Backend (Docker → GCE) ─────────────────────────────────────────────
+# ── Backend (Docker → external VM) ─────────────────────────────────────
 
 deploy_backend() {
   echo ""
@@ -57,7 +54,7 @@ deploy_backend() {
 
   echo "→ Building Docker image..."
   docker build \
-    --platform linux/amd64 \
+    --platform linux/arm64 \
     -t decent-visualizer-backend \
     -f "$BACKEND_DIR/Dockerfile" "$ROOT_DIR"
 
@@ -71,15 +68,16 @@ deploy_backend() {
   scp_to_vm "$archive" "/tmp/backend-image.tar.gz"
 
   echo "→ Syncing docker-compose.yml..."
-  scp_to_vm "$ROOT_DIR/docker-compose.yml" "/opt/app/docker-compose.yml"
+  scp_to_vm "$ROOT_DIR/docker-compose.yml" "/tmp/docker-compose.yml"
 
   echo "→ Loading image and restarting..."
   ssh_vm bash -s <<'REMOTE'
-cd /opt/app
+cd /opt/decent-visualizer
+install -m 644 /tmp/docker-compose.yml docker-compose.yml
 docker load < /tmp/backend-image.tar.gz
-docker compose up -d --remove-orphans
+docker compose --env-file runtime.env up -d --remove-orphans
 docker image prune -f
-rm -f /tmp/backend-image.tar.gz
+rm -f /tmp/backend-image.tar.gz /tmp/docker-compose.yml
 REMOTE
 
   ssh_vm "docker compose -f /opt/app/docker-compose.yml ps"

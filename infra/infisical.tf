@@ -18,8 +18,8 @@ ephemeral "infisical_secret" "cloudflare_api_token" {
 }
 
 # Terraform-generated values the backend needs at runtime are published to
-# Infisical at /backend (prod). The backend pulls them on startup via its GCE
-# instance identity, so these never transit CI or land on disk as an artifact.
+# Infisical at /backend (prod). The backend pulls them on startup via its
+# Universal Auth identity, so these never transit CI or land on disk as an artifact.
 resource "infisical_secret" "supabase_url" {
   name         = "supabase_url"
   value        = module.supabase.api_url

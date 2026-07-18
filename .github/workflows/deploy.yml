@@ -97,7 +97,8 @@ jobs:
 
       - name: Export outputs
         id: tofu-output
-        run: echo "supabase_project_ref=$(tofu output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "supabase_project_ref=$(tofu output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
         working-directory: infra
 
   migrate:
@@ -136,7 +137,7 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ needs.infra.outputs.supabase_project_ref }}
 
   vm:
-    name: Deploy VM
+    name: Deploy external VM
     needs: migrate
     runs-on: ubuntu-latest
     permissions:
@@ -150,12 +151,38 @@ jobs:
           ci: "true"
           infra: "true"
 
+      - uses: Infisical/secrets-action@v1.0.16
+        with:
+          identity-id: ${{ env.infisical_deploy_identity_id }}
+          method: oidc
+          env-slug: "prod"
+          project-slug: ${{ env.infisical_deploy_project_slug }}
+          secret-path: "/deploy"
+          export-type: env
+
+      # Terraform state remains in GCS during the reversible cutover, and is
+      # read here solely to obtain the current Cloudflare tunnel token.
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.gcp_workflow_identity_provider }}
           service_account: ${{ env.gcp_service_account }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.12"
+
+      - name: Read Cloudflare tunnel token
+        run: |
+          tofu init
+          echo "CLOUDFLARED_TOKEN=$(tofu output -raw cloudflare_tunnel_token)" >> "$GITHUB_ENV"
+        working-directory: infra
+
+      - name: Prepare deployment credentials
+        run: |
+          key_path="$RUNNER_TEMP/oci_deploy_ed25519"
+          printf '%s\n' "$oci_ssh_private_key" > "$key_path"
+          chmod 600 "$key_path"
+          echo "OCI_SSH_KEY=$key_path" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -163,7 +190,7 @@ jobs:
       - name: Build image
         run: |
           docker build \
-            --platform linux/amd64 \
+            --platform linux/arm64 \
             -t decent-visualizer-backend \
             -f backend/Dockerfile .
 
@@ -171,23 +198,37 @@ jobs:
         run: |
           ARCHIVE=$(mktemp -d)/backend-image.tar.gz
           docker save decent-visualizer-backend | gzip > "$ARCHIVE"
-          gcloud compute scp --quiet \
-            --project="$gcp_project_id" --zone="$gcp_zone" \
-            "$ARCHIVE" "appuser@${project_slug}:/tmp/backend-image.tar.gz"
-          gcloud compute scp --quiet \
-            --project="$gcp_project_id" --zone="$gcp_zone" \
-            docker-compose.yml "appuser@${project_slug}:/opt/app/docker-compose.yml"
+          runtime_env=$(mktemp)
+          : "${infisical_backend_client_id:?Missing /deploy infisical_backend_client_id}"
+          : "${infisical_backend_client_secret:?Missing /deploy infisical_backend_client_secret}"
+          {
+            printf 'INFISICAL_CLIENT_ID=%s\n' "$infisical_backend_client_id"
+            printf 'INFISICAL_CLIENT_SECRET=%s\n' "$infisical_backend_client_secret"
+            printf 'CLOUDFLARED_TOKEN=%s\n' "$CLOUDFLARED_TOKEN"
+          } > "$runtime_env"
+          host="$external_vm_host"
+          user="$external_vm_ssh_user"
+          for _ in {1..60}; do
+            if ssh -i "$OCI_SSH_KEY" -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$user@$host" true; then break; fi
+            sleep 10
+          done
+          ssh -i "$OCI_SSH_KEY" -o BatchMode=yes "$user@$host" 'sudo install -d -o "$(id -un)" -g "$(id -gn)" /opt/decent-visualizer && docker info >/dev/null'
+          scp -i "$OCI_SSH_KEY" -o BatchMode=yes "$ARCHIVE" "$user@$host:/tmp/backend-image.tar.gz"
+          scp -i "$OCI_SSH_KEY" -o BatchMode=yes docker-compose.yml "$user@$host:/tmp/docker-compose.yml"
+          scp -i "$OCI_SSH_KEY" -o BatchMode=yes "$runtime_env" "$user@$host:/tmp/runtime.env"
 
       - name: Reload on VM
         run: |
-          gcloud compute ssh --quiet \
-            --project="$gcp_project_id" --zone="$gcp_zone" \
-            "appuser@${project_slug}" -- bash -s <<'REMOTE'
-          cd /opt/app
+          host="$external_vm_host"
+          user="$external_vm_ssh_user"
+          ssh -i "$OCI_SSH_KEY" -o BatchMode=yes "$user@$host" bash -s <<'REMOTE'
+          cd /opt/decent-visualizer
+          install -m 644 /tmp/docker-compose.yml docker-compose.yml
+          install -m 600 /tmp/runtime.env runtime.env
           docker load < /tmp/backend-image.tar.gz
-          docker compose up -d --remove-orphans
+          docker compose --env-file runtime.env up -d --remove-orphans
           docker image prune -f
-          rm -f /tmp/backend-image.tar.gz
+          rm -f /tmp/backend-image.tar.gz /tmp/docker-compose.yml /tmp/runtime.env
           REMOTE
 
   frontend:

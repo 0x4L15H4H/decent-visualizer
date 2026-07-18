@@ -9,13 +9,19 @@ output "gcp_zone" {
 }
 
 output "vm_external_ip" {
-  description = "External IP of the GCE backend API"
-  value       = module.gce.external_ip
+  description = "External host of the managed backend VM"
+  value       = var.external_vm_host
 }
 
 output "vm_ssh_command" {
   description = "SSH command to connect to the VM"
-  value       = "gcloud compute ssh ${var.project_slug} --zone=${var.gcp_zone} --project=${var.gcp_project_id}"
+  value       = "ssh -i <deploy-key> ${var.external_vm_ssh_user}@${var.external_vm_host}"
+}
+
+output "cloudflare_tunnel_token" {
+  description = "Tunnel token used by the cloudflared Compose sidecar."
+  sensitive   = true
+  value       = module.cloudflare.tunnel_token
 }
 
 output "backend_url" {

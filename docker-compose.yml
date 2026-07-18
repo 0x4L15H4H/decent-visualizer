@@ -7,11 +7,22 @@
 services:
   backend:
     image: decent-visualizer-backend:latest
-    ports:
-      - "127.0.0.1:80:8000"
-    extra_hosts:
-      - "metadata.google.internal:169.254.169.254"
-      - "metadata:169.254.169.254"
+    expose:
+      - "8000"
+    env_file:
+      - /opt/decent-visualizer/runtime.env
     logging:
-      driver: gcplogs
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:?CLOUDFLARED_TOKEN is required}
+    environment:
+      CLOUDFLARED_TOKEN: ${CLOUDFLARED_TOKEN:?CLOUDFLARED_TOKEN is required}
+    depends_on:
+      - backend
     restart: unless-stopped

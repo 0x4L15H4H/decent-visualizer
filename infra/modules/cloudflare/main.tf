@@ -36,7 +36,8 @@ resource "cloudflare_zero_trust_tunnel_cloudflared" "api" {
   config_src = "cloudflare" # remotely-managed config (set below)
 }
 
-# Ingress: route the API hostname to the backend listening on the VM's loopback.
+# Ingress: route the API hostname to the backend service on the private Docker
+# network. cloudflared runs as a sidecar in the same Compose project.
 resource "cloudflare_zero_trust_tunnel_cloudflared_config" "api" {
   account_id = var.account_id
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.api.id
@@ -44,7 +45,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "api" {
   config {
     ingress_rule {
       hostname = "${var.api_subdomain}.${var.domain}"
-      service  = "http://localhost:${var.backend_port}"
+      service  = "http://backend:${var.backend_port}"
     }
     ingress_rule {
       service = "http_status:404"

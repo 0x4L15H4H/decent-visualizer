@@ -44,6 +44,19 @@ variable "vm_boot_disk_size_gb" {
   default     = 30
 }
 
+# ── External VM ───────────────────────────────────────────────────────
+
+variable "external_vm_host" {
+  description = "Public IP address or DNS name of the externally managed deployment VM."
+  type        = string
+}
+
+variable "external_vm_ssh_user" {
+  description = "SSH user for the externally managed deployment VM."
+  type        = string
+  default     = "opc"
+}
+
 # ── Supabase ───────────────────────────────────────────────────────────
 
 variable "supabase_org_id" {

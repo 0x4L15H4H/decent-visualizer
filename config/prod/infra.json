@@ -12,6 +12,10 @@
     "machine_type": "e2-micro",
     "boot_disk_size_gb": 30
   },
+  "external_vm": {
+    "host": "150.136.114.64",
+    "ssh_user": "opc"
+  },
   "supabase": {
     "org_id": "glvwqtjhnydtixrlcfxf",
     "db_region": "us-east-2"
