@@ -4,10 +4,10 @@ from typing import Any, cast
 
 from postgrest._sync.request_builder import SyncRequestBuilder
 from postgrest.types import JSON
+from supabase import Client
 
 from app.compression import compress_json, decompress_json
 from app.models.shot import ShotSummary, ShotUpload, ShotUploadCreate, ShotUploadUpdate
-from supabase import Client
 
 # Lightweight projection for list views. The coffee name lives in the workflow
 # JSON; selecting just that path avoids shipping the whole workflow/measurements.

@@ -2,9 +2,9 @@ from typing import Any, cast
 
 from postgrest._sync.request_builder import SyncRequestBuilder
 from postgrest.types import JSON
+from supabase import Client
 
 from app.models.auth import UserResponse
-from supabase import Client
 
 
 class UserStorage:

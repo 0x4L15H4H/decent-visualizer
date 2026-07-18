@@ -5,6 +5,7 @@ from difflib import SequenceMatcher
 from typing import Any, cast
 
 from postgrest._sync.request_builder import SyncRequestBuilder
+from supabase import Client
 
 from app.models.entities import (
     AliasSource,
@@ -15,7 +16,6 @@ from app.models.entities import (
     EntityUpdate,
     NormalizationCandidate,
 )
-from supabase import Client
 
 
 def _normalize(value: str) -> str:
