@@ -29,9 +29,10 @@ resource "infisical_secret" "supabase_url" {
 }
 
 resource "infisical_secret" "supabase_service_key" {
-  name         = "supabase_service_key"
-  value        = module.supabase.service_role_key
-  env_slug     = "prod"
-  workspace_id = var.infisical_deploy_project_id
-  folder_path  = "/backend"
+  name             = "supabase_service_key"
+  value_wo         = module.supabase.service_role_key
+  value_wo_version = 1
+  env_slug         = "prod"
+  workspace_id     = var.infisical_deploy_project_id
+  folder_path      = "/backend"
 }
