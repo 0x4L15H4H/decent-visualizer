@@ -139,7 +139,9 @@ jobs:
   vm:
     name: Deploy external VM
     needs: migrate
-    runs-on: ubuntu-latest
+    # The Oracle VM is ARM64. Use GitHub's native ARM64 runner instead of
+    # cross-building under QEMU, which is substantially slower.
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       id-token: write
@@ -185,9 +187,6 @@ jobs:
           printf '%s\n' "$oci_ssh_private_key" > "$key_path"
           chmod 600 "$key_path"
           echo "OCI_SSH_KEY=$key_path" >> "$GITHUB_ENV"
-
-      - name: Set up QEMU for ARM64 builds
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
