@@ -1,186 +1,47 @@
 # Decent Visualizer
 
-A split-stack coffee shot tracker with a Python/FastAPI backend in Docker on an
-externally managed Oracle Linux VM, a
-React/Vite frontend on Cloudflare Pages, and Supabase Postgres for persistence.
-
-## Features
-
-- Session-based signup and login for authenticated APIs
-- Shot CRUD API for Decent espresso upload payloads; the shot-history frontend
-  is currently a placeholder
-- Bean library with create and edit workflows
-- Canonical coffee metadata for roasters, producers, farms, varieties, and
-  processes, plus ISO country matching
-- Gemini-powered bean-package photo extraction, grounded with Parallel web
-  search and reviewed against canonical entities before saving
-- Application settings, including signup control
+A coffee-shot tracker with a React/Vite frontend on Cloudflare Pages and a
+FastAPI backend on an Oracle Linux ARM VM.
 
 ## Architecture
 
-```
-Browser
-  │
-  ├─ https://www.example.com ──► Cloudflare Pages (React/Vite, CDN-hosted)
-  │                                      │
-  │                                      │ API calls
-  │                                      ▼
-  └─ https://api.example.com ──► Cloudflare Edge
-                                         │
-                                         │ Cloudflare Tunnel (cloudflared dials out)
-                                         ▼
-                     External Oracle Linux VM (Docker Compose)
-                                         │
-                                         │ Supabase client (service role key)
-                                         ▼
-                                  Supabase (Postgres + REST API)
-```
-
-- **Frontend**: React/Vite SPA deployed to Cloudflare Pages, served from Cloudflare's CDN with no origin server.
-- **Backend**: Python/FastAPI running in Docker on an externally managed Oracle Linux ARM VM. The backend exposes port 8000 only on the private Compose network; it has no public HTTP port.
-- **Tunnel**: `cloudflared` runs as a sidecar in the same Compose project and dials out to Cloudflare, which routes `api.<domain>` to `backend:8000`. The VM needs SSH for deployments but no inbound HTTP firewall rule.
-- **Database**: Supabase (managed Postgres). The backend connects using the service role key; the frontend never touches the database directly. Migrations live in `supabase/migrations/` and are applied in CI via `supabase db push`.
-- **Normalization**: Beans reference canonical entities by UUID and countries by ISO 3166-1 alpha-2 code. Candidate lookup uses canonical names and curated aliases; photo extraction must select a known candidate or propose a user-reviewable entity.
-- **Secrets**: held in Infisical. CI writes a least-privilege Infisical Universal Auth bootstrap credential to the VM at deploy time; it is never in the image or Terraform state. The backend uses it to pull runtime secrets at startup.
-- **Logging**: Docker uses the local logging driver with bounded rotation (three 10 MB files).
-
-## Deployment
-
-The single `.github/workflows/deploy.yml` workflow runs backend and frontend
-checks on pull requests, pushes to `main`, and manual `workflow_dispatch`
-runs. Infrastructure and deployment jobs are skipped on pull requests. After
-checks pass on a deployment run, the remaining jobs are `infra` (OpenTofu),
-`migrate` (Supabase migrations), `vm` (backend), and `frontend` (Cloudflare
-Pages).
-
-### Prerequisites
-
-- GCP project with billing enabled (temporary Terraform state and legacy rollback VM only)
-- Externally managed Oracle Linux ARM VM with Docker Engine and Docker Compose
-- Cloudflare account with your domain added
-- Supabase account with an org created
-- Infisical project
-
-### 1. GCP Setup
-
-Run the one-time setup script to enable APIs, create the Workload Identity pool, create the Terraform service account, and bootstrap the GCS state bucket. Edit `REPO` and `PROJECT_ID` at the top of the script first:
-
-```bash
-bash scripts/gcp-setup.sh
-```
-
-The script prints `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` at the end. Put `service_account` into `config/prod/infra.json` under the `gcp` section and `workflow_identity_provider` into `config/prod/ci.json` under the `gcp` section (step 3).
-
-### 2. Infisical
-
-Secrets live in Infisical, split into two folders under the `prod` environment:
-
-- **`/deploy`** — read by CI to provision and deploy. Add these by hand:
-
-  | Secret | Value |
-  |---|---|
-  | `supabase_admin_token` | Supabase PAT. Create one at supabase.com/dashboard/account/tokens. |
-| `cloudflare_api_token` | Cloudflare API token with `Account / Cloudflare Pages / Edit`, `Account / Zero Trust / Edit`, `Account / Cloudflare Tunnel / Edit`, `Zone / DNS / Edit`, and `Zone / Page Rules / Edit` permissions. |
-  | `oci_ssh_private_key` | Private half of the dedicated OCI VM deployment SSH key. |
-  | `infisical_backend_client_id` | Client ID for the backend's read-only Universal Auth identity. |
-  | `infisical_backend_client_secret` | Client secret for that identity. |
-
-- **`/backend`** — the backend's runtime secrets. `supabase_url` and `supabase_service_key` are written by Terraform on apply. `gemini_api_key` and `parallel_api_key` must be added by hand (used for bean photo extraction and search grounding). The backend pulls all of these at startup. The Supabase database password is generated by Terraform and stays in its state.
-
-Then create two machine identities under Organization Settings → Access Control → Identities:
-
-| Identity | Auth method | Permissions | Config location |
-|---|---|---|---|
-| Deploy/CI | **OIDC**. Issuer `https://token.actions.githubusercontent.com`, audience `https://github.com/YOUR_GITHUB_ORG`. | Read `/deploy`, create/edit `/backend`. | `infisical.deploy_identity_id` in `prod/infra.json` |
-| Backend | **Universal Auth**. Create a dedicated identity with read-only access to `/backend`; store its client ID and secret in `/deploy` using the names above. | Read `/backend`. | Delivered only to the VM by CI. |
-
-The deploy identity does double duty: CI's secrets-action reads `/deploy` with it, and the Terraform provider writes `/backend` with it over OIDC.
-
-### 3. Config
-
-All non-secret configuration lives in committed JSON files under `config/`, organized by environment and concern. There are no GitHub Actions secrets: GCP and Infisical both authenticate over OIDC.
-
-**`config/prod/infra.json`** -- Terraform input, organized by service. CI flattens nested keys (e.g. `gcp.project_id` becomes `gcp_project_id`) and writes it directly as `terraform.tfvars.json`:
-
-| Section | Key | Description |
-|---|---|---|
-| `gcp` | `project_id` | GCP project ID. |
-| `gcp` | `region` | GCP region. Must be `us-east1`, `us-central1`, or `us-west1` (Always Free). |
-| `gcp` | `zone` | GCP zone, e.g. `us-central1-a`. |
-| `gcp` | `service_account` | Printed by `gcp-setup.sh`. |
-| `vm` | `machine_type` | `e2-micro` (free), `e2-small`, or `e2-medium`. |
-| `vm` | `boot_disk_size_gb` | Boot disk size in GB. Always Free allows up to 30 GB. |
-| `external_vm` | `host` | Public IP address or DNS name of the Docker host. |
-| `external_vm` | `ssh_user` | Deployment SSH user, e.g. `opc` on Oracle Linux. |
-| `supabase` | `org_id` | Supabase org slug from the dashboard URL. |
-| `supabase` | `db_region` | Supabase region, e.g. `us-east-2`. |
-| `cloudflare` | `account_id` | Cloudflare account ID from the dashboard sidebar. |
-| `cloudflare` | `zone_id` | Zone ID from the domain's Overview page. |
-| `cloudflare` | `pages_project` | Cloudflare Pages project name; becomes `<name>.pages.dev` (globally unique). |
-| `infisical` | `deploy_project_id` | Infisical project (workspace) UUID. |
-| `infisical` | `deploy_identity_id` | Deploy/CI machine identity ID (from step 2). |
-| *(top-level)* | `domain` | Root domain, e.g. `example.com`. Frontend at `www.<domain>`, API at `api.<domain>`. |
-| *(top-level)* | `project_name` | Human-readable project name (Supabase display name). |
-| *(top-level)* | `project_slug` | URL-safe slug for resource naming. |
-
-**`config/prod/backend.json`** -- production backend app config, nested by service. The backend reads `domain` and `cloudflare.pages_project` to derive CORS origins; the docker-entrypoint reads `infisical.backend_project_id` for secret fetching. Copied into the Docker image at build time.
-
-**`config/prod/ci.json`** -- CI-only values not needed by Terraform, nested by service: `gcp.workflow_identity_provider` (GCP OIDC auth), `infisical.deploy_project_slug` (secrets-action), and `infisical.deploy_identity_id`.
-
-**`config/dev/backend.json`** -- local dev Supabase credentials (committed with well-known local defaults).
-
-### 4. First deploy
-
-Push to `main`. The `infra` job provisions everything with OpenTofu, including writing the `/backend` secrets to Infisical. Then `migrate` applies database migrations, and finally `vm` and `frontend` deploy in parallel.
+- **Frontend:** Cloudflare Pages.
+- **Backend:** Docker Compose on the Oracle VM, reached through a Cloudflare
+  Tunnel sidecar; no inbound HTTP port is exposed.
+- **Database:** SQLite in the persistent `decent-visualizer_database` Docker
+  volume.
+- **Migrations:** Alembic revisions in `backend/migrations/`; the backend
+  upgrades to the current revision at startup.
+- **Backups:** a Compose sidecar uploads a compressed SQLite snapshot to a
+  private OCI Object Storage bucket daily. OCI lifecycle management deletes
+  snapshots after 30 days.
+- **Secrets:** Infisical. GitHub Actions uses OCI workload identity federation;
+  the backend has a read-only Universal Auth identity for `/backend`.
 
 ## Local development
 
-Prerequisites:
-
-- Python 3.12+ and [uv](https://docs.astral.sh/uv/)
-- Node.js 22 and pnpm 11
-- Docker and the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
-
-Install dependencies once:
-
-```bash
-cd backend && uv sync
-cd ../frontend && pnpm install
-cd ..
-```
-
-Start the frontend, backend, and local Supabase stack:
-
-```bash
+```sh
 make dev
 ```
 
-The frontend runs at `http://localhost:5173`, the backend at
-`http://localhost:8000`, and Supabase uses its standard local ports. Local
-Supabase credentials are committed in `config/dev/backend.json`; they are the
-well-known local-only keys emitted by the Supabase CLI.
+This starts the frontend and backend. Local SQLite data is stored at
+`backend/.data/decent-visualizer.sqlite3`.
 
-Bean photo extraction is optional in development. Set `GEMINI_API_KEY` and
-`PARALLEL_API_KEY` in the backend environment to enable it.
+Run checks with:
 
-Run local checks and formatting:
-
-```bash
+```sh
 make lint
-make format
-(cd backend && make typecheck test)
-(cd frontend && pnpm typecheck && pnpm test)
+(cd backend && uv run pytest)
 ```
 
-CI also checks formatting without modifying files.
+## Deployment
 
-## Repository layout
+Push to `main`. GitHub Actions tests the app, applies OCI/Cloudflare
+infrastructure through OpenTofu, then deploys the backend and frontend.
 
-| Path | Purpose |
-|---|---|
-| `frontend/` | React 19, Vite, and Tailwind frontend |
-| `backend/` | FastAPI application, storage layer, and tests |
-| `supabase/migrations/` | Database schema and migrations |
-| `infra/` | OpenTofu modules for Cloudflare, Supabase, Infisical, and legacy GCE rollback |
-| `config/` | Committed non-secret development and production configuration |
-| `scripts/` | One-time GCP setup and deployment helpers |
+## Layout
+
+- `backend/`: FastAPI app, SQLite storage, Alembic migrations, and tests.
+- `frontend/`: React/Vite app.
+- `infra/`: OpenTofu for OCI backups, Cloudflare, and Infisical.
+- `config/`: committed non-secret configuration.

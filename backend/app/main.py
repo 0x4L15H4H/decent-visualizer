@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # Compress responses. The shot measurement time-series is large and highly
-# repetitive, so gzip cuts VM egress (a scarce GCP free-tier resource) by ~5-10x.
+# repetitive, so gzip substantially reduces backup transfer size.
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.include_router(health.router, prefix="/api")
