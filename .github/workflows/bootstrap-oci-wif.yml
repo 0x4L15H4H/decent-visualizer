@@ -1,0 +1,37 @@
+name: Bootstrap OCI GitHub workload identity
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bootstrap:
+    name: Create OCI WIF trust
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/load-config
+        with:
+          ci: "true"
+
+      - uses: Infisical/secrets-action@v1.0.16
+        with:
+          identity-id: ${{ env.infisical_deploy_identity_id }}
+          method: oidc
+          env-slug: "prod"
+          project-slug: ${{ env.infisical_deploy_project_slug }}
+          secret-path: "/deploy"
+          export-type: env
+
+      - name: Create service user, group, and GitHub trust
+        env:
+          OCI_WIF_IDENTITY_DOMAIN_URL: https://idcs-03ed6037285d4baabee048615c1419a2.identity.oraclecloud.com
+          OCI_WIF_GITHUB_REPOSITORY: 0x4L15H4H/decent-visualizer
+          OCI_WIF_GITHUB_AUDIENCE: oci-github-actions
+        run: .github/scripts/bootstrap-oci-wif.sh

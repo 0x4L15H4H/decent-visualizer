@@ -1,0 +1,32 @@
+name: Configure OCI workload identity federation
+description: Exchange a GitHub Actions OIDC token for a short-lived OCI security-token profile.
+inputs:
+  identity-domain-url:
+    description: OCI Identity Domain URL.
+    required: true
+  tenancy-ocid:
+    description: OCI tenancy OCID.
+    required: true
+  service-user-ocid:
+    description: OCI service-user OCID represented by the exchanged token.
+    required: true
+  region:
+    description: OCI region identifier.
+    required: false
+    default: us-ashburn-1
+  audience:
+    description: GitHub OIDC audience configured in OCI's identity-propagation trust.
+    required: false
+    default: oci-github-actions
+runs:
+  using: composite
+  steps:
+    - name: Exchange GitHub identity for OCI credentials
+      shell: bash
+      env:
+        OCI_WIF_IDENTITY_DOMAIN_URL: ${{ inputs.identity-domain-url }}
+        OCI_WIF_TENANCY_OCID: ${{ inputs.tenancy-ocid }}
+        OCI_WIF_SERVICE_USER_OCID: ${{ inputs.service-user-ocid }}
+        OCI_WIF_REGION: ${{ inputs.region }}
+        OCI_WIF_AUDIENCE: ${{ inputs.audience }}
+      run: ${{ github.action_path }}/configure.sh

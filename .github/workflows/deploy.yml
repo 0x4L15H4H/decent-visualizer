@@ -49,6 +49,11 @@ jobs:
     needs: test
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # OCI's HTTP backend has no native state lock; serialize all production
+    # infrastructure applies at the CI boundary.
+    concurrency:
+      group: production-infrastructure
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
@@ -63,6 +68,24 @@ jobs:
           ci: "true"
           infra: "true"
 
+      - uses: Infisical/secrets-action@v1.0.16
+        with:
+          identity-id: ${{ env.infisical_deploy_identity_id }}
+          method: oidc
+          env-slug: "prod"
+          project-slug: ${{ env.infisical_deploy_project_slug }}
+          secret-path: "/deploy"
+          export-type: env
+
+      - name: Configure OCI state endpoint
+        run: |
+          : "${oci_tf_state_url:?Missing /deploy oci_tf_state_url}"
+          state_url="${oci_tf_state_url%/}/decent-visualizer/terraform.tfstate"
+          echo "::add-mask::$state_url"
+          echo "OCI_TF_STATE_URL=$state_url" >> "$GITHUB_ENV"
+
+      # Retained for this state-migration run only: it authenticates OpenTofu
+      # to read the existing GCS state and keeps the legacy resources managed.
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ env.gcp_workflow_identity_provider }}
@@ -83,8 +106,21 @@ jobs:
             core.setSecret(token)
             core.exportVariable('INFISICAL_AUTH_JWT', token)
 
-      - name: Init
-        run: tofu init
+      # A new GitHub runner has no remembered backend configuration. Initialize
+      # GCS explicitly before restoring the HTTP configuration, so migrate-state
+      # copies the existing live state rather than creating an empty one.
+      - name: Initialize source state in GCS
+        run: |
+          cp providers.tf "$RUNNER_TEMP/providers.tf.http"
+          perl -0pi -e 's{  # OCI Object Storage pre-authenticated URL.*?  backend "http" \{\n    update_method = "PUT"\n  \}}{  backend "gcs" {\n    bucket = "decent-visualizer-tfstate"\n    prefix = "decent-visualizer"\n  }}s' providers.tf
+          tofu init
+          tofu state list | grep -q '^module.cloudflare.cloudflare_pages_project.frontend$'
+        working-directory: infra
+
+      - name: Migrate state to OCI Object Storage
+        run: |
+          cp "$RUNNER_TEMP/providers.tf.http" providers.tf
+          tofu init -migrate-state -force-copy -backend-config="address=$OCI_TF_STATE_URL"
         working-directory: infra
 
       - name: Plan
@@ -162,12 +198,12 @@ jobs:
           secret-path: "/deploy"
           export-type: env
 
-      # Terraform state remains in GCS during the reversible cutover, and is
-      # read here solely to obtain the current Cloudflare tunnel token.
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.gcp_workflow_identity_provider }}
-          service_account: ${{ env.gcp_service_account }}
+      - name: Configure OCI state endpoint
+        run: |
+          : "${oci_tf_state_url:?Missing /deploy oci_tf_state_url}"
+          state_url="${oci_tf_state_url%/}/decent-visualizer/terraform.tfstate"
+          echo "::add-mask::$state_url"
+          echo "OCI_TF_STATE_URL=$state_url" >> "$GITHUB_ENV"
 
       - uses: opentofu/setup-opentofu@v1
         with:
@@ -175,7 +211,7 @@ jobs:
 
       - name: Read Cloudflare tunnel token
         run: |
-          tofu init
+          tofu init -backend-config="address=$OCI_TF_STATE_URL"
           tunnel_token="$(tofu output -raw cloudflare_tunnel_token)"
           echo "::add-mask::$tunnel_token"
           echo "CLOUDFLARED_TOKEN=$tunnel_token" >> "$GITHUB_ENV"

@@ -17,6 +17,16 @@ ephemeral "infisical_secret" "cloudflare_api_token" {
   folder_path  = "/deploy"
 }
 
+# Supabase returns the service-role key only when the project is created. Read
+# the already-provisioned copy ephemerally so its write-only Terraform resource
+# stays valid on later plans without persisting the key in state.
+ephemeral "infisical_secret" "existing_supabase_service_key" {
+  name         = "supabase_service_key"
+  env_slug     = "prod"
+  workspace_id = var.infisical_deploy_project_id
+  folder_path  = "/backend"
+}
+
 # Terraform-generated values the backend needs at runtime are published to
 # Infisical at /backend (prod). The backend pulls them on startup via its
 # Universal Auth identity, so these never transit CI or land on disk as an artifact.
@@ -30,7 +40,7 @@ resource "infisical_secret" "supabase_url" {
 
 resource "infisical_secret" "supabase_service_key" {
   name             = "supabase_service_key"
-  value_wo         = module.supabase.service_role_key
+  value_wo         = ephemeral.infisical_secret.existing_supabase_service_key.value
   value_wo_version = 1
   env_slug         = "prod"
   workspace_id     = var.infisical_deploy_project_id

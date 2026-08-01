@@ -24,9 +24,11 @@ terraform {
     }
   }
 
-  backend "gcs" {
-    bucket = "decent-visualizer-tfstate"
-    prefix = "decent-visualizer"
+  # OCI Object Storage pre-authenticated URL is supplied at init time as an
+  # address backend setting. Keeping it out of source control prevents the
+  # bearer URL from being persisted in this repository.
+  backend "http" {
+    update_method = "PUT"
   }
 }
 

@@ -5,5 +5,11 @@
   "infisical": {
     "deploy_project_slug": "decent-visualizer",
     "deploy_identity_id": "9f56b963-0192-4521-b0ca-21f553bc20d8"
+  },
+  "oci": {
+    "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaasidz2kin3pohs65irromnbbqs56lb22sirv57mwcrhejfpvnks4a",
+    "region": "us-ashburn-1",
+    "identity_domain_url": "https://idcs-03ed6037285d4baabee048615c1419a2.identity.oraclecloud.com",
+    "wif_service_user_ocid": "f3b8cb9a9ddd4de3abf7d3aaa2c0158c"
   }
 }
