@@ -11,10 +11,6 @@
     "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaasidz2kin3pohs65irromnbbqs56lb22sirv57mwcrhejfpvnks4a",
     "region": "us-ashburn-1"
   },
-  "supabase": {
-    "org_id": "glvwqtjhnydtixrlcfxf",
-    "db_region": "us-east-2"
-  },
   "cloudflare": {
     "account_id": "b1357ee146ae17c1780cfaf0b2a3a6b6",
     "zone_id": "201834cd65f5a2d4818f9cf79897cb5f",

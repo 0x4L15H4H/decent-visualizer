@@ -57,8 +57,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    outputs:
-      supabase_project_ref: ${{ steps.tofu-output.outputs.supabase_project_ref }}
 
     steps:
       - uses: actions/checkout@v4
@@ -121,50 +119,9 @@ jobs:
         run: tofu apply -auto-approve
         working-directory: infra
 
-      - name: Export outputs
-        id: tofu-output
-        run: |
-          echo "supabase_project_ref=$(tofu output -raw supabase_project_ref)" >> "$GITHUB_OUTPUT"
-        working-directory: infra
-
-  migrate:
-    name: Run migrations
-    needs: infra
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: ./.github/actions/load-config
-        with:
-          ci: "true"
-
-      - uses: Infisical/secrets-action@v1.0.16
-        with:
-          identity-id: ${{ env.infisical_deploy_identity_id }}
-          method: oidc
-          env-slug: "prod"
-          project-slug: ${{ env.infisical_deploy_project_slug }}
-          secret-path: "/deploy"
-          export-type: env
-
-      - uses: supabase/setup-cli@v1
-        with:
-          version: 2.107.0
-
-      - name: Push migrations
-        run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
-          supabase db push --linked
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ env.supabase_admin_token }}
-          SUPABASE_PROJECT_REF: ${{ needs.infra.outputs.supabase_project_ref }}
-
   vm:
     name: Deploy external VM
-    needs: migrate
+    needs: infra
     # The Oracle VM is ARM64. Use GitHub's native ARM64 runner instead of
     # cross-building under QEMU, which is substantially slower.
     runs-on: ubuntu-24.04-arm
@@ -276,7 +233,7 @@ jobs:
 
   frontend:
     name: Deploy frontend
-    needs: migrate
+    needs: infra
     runs-on: ubuntu-latest
     permissions:
       contents: read
