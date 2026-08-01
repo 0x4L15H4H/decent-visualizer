@@ -11,11 +11,31 @@ services:
       - "8000"
     env_file:
       - /opt/decent-visualizer/runtime.env
+    volumes:
+      - database:/data
     logging:
       driver: local
       options:
         max-size: "10m"
         max-file: "3"
+    restart: unless-stopped
+
+  sqlite-migrate:
+    image: decent-visualizer-backend:latest
+    env_file:
+      - /opt/decent-visualizer/runtime.env
+    volumes:
+      - database:/data
+    command: ["uv", "run", "python", "-m", "app.migrate_supabase"]
+    profiles: ["migration"]
+
+  sqlite-backup:
+    image: decent-visualizer-backend:latest
+    env_file:
+      - /opt/decent-visualizer/runtime.env
+    volumes:
+      - database:/data:ro
+    command: ["uv", "run", "--no-dev", "python", "-m", "app.backup", "--loop"]
     restart: unless-stopped
 
   cloudflared:
@@ -26,3 +46,6 @@ services:
     depends_on:
       - backend
     restart: unless-stopped
+
+volumes:
+  database:

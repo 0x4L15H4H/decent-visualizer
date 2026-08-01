@@ -2,19 +2,14 @@
   "domain": "alishah.xyz",
   "project_name": "Decent Visualizer",
   "project_slug": "decent-visualizer",
-  "gcp": {
-    "project_id": "decent-visualizer",
-    "region": "us-central1",
-    "zone": "us-central1-a",
-    "service_account": "terraform@decent-visualizer.iam.gserviceaccount.com"
-  },
-  "vm": {
-    "machine_type": "e2-micro",
-    "boot_disk_size_gb": 30
-  },
   "external_vm": {
     "host": "150.136.114.64",
-    "ssh_user": "opc"
+    "ssh_user": "opc",
+    "instance_ocid": "ocid1.instance.oc1.iad.anuwcljrwg7xrhictgtwt6isd2rcsf2shrvvrjfaurebkurok6mfdbczljtq"
+  },
+  "oci": {
+    "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaasidz2kin3pohs65irromnbbqs56lb22sirv57mwcrhejfpvnks4a",
+    "region": "us-ashburn-1"
   },
   "supabase": {
     "org_id": "glvwqtjhnydtixrlcfxf",

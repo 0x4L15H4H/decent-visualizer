@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.db import get_supabase
+from app.db import get_database
 from app.dependencies import get_current_user
 from app.models.shot import ShotSummary, ShotUpload, ShotUploadCreate, ShotUploadUpdate
 from app.storage.shots import ShotStorage
@@ -11,7 +11,7 @@ router = APIRouter(prefix="/shots", tags=["shots"], dependencies=[Depends(get_cu
 
 
 def _storage() -> ShotStorage:
-    return ShotStorage(get_supabase())
+    return ShotStorage(get_database())
 
 
 @router.get("", response_model=list[ShotSummary])

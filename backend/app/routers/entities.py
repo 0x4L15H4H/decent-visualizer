@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.db import get_supabase
+from app.db import get_database
 from app.dependencies import get_current_user
 from app.lib.countries import CountryCandidate, country_candidates
 from app.models.entities import (
@@ -29,7 +29,7 @@ normalization_router = APIRouter(
 
 
 def _storage() -> EntityStorage:
-    return EntityStorage(get_supabase())
+    return EntityStorage(get_database())
 
 
 @router.get("", response_model=list[CanonicalEntity])

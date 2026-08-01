@@ -77,19 +77,19 @@ jobs:
           secret-path: "/deploy"
           export-type: env
 
+      - uses: ./.github/actions/configure-oci-wif
+        with:
+          identity-domain-url: ${{ env.oci_identity_domain_url }}
+          tenancy-ocid: ${{ env.oci_tenancy_ocid }}
+          service-user-ocid: ${{ env.oci_wif_service_user_ocid }}
+          region: ${{ env.oci_region }}
+
       - name: Configure OCI state endpoint
         run: |
           : "${oci_tf_state_url:?Missing /deploy oci_tf_state_url}"
           state_url="${oci_tf_state_url%/}/decent-visualizer/terraform.tfstate"
           echo "::add-mask::$state_url"
           echo "OCI_TF_STATE_URL=$state_url" >> "$GITHUB_ENV"
-
-      # Retained for this state-migration run only: it authenticates OpenTofu
-      # to read the existing GCS state and keeps the legacy resources managed.
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ env.gcp_workflow_identity_provider }}
-          service_account: ${{ env.gcp_service_account }}
 
       - uses: opentofu/setup-opentofu@v1
         with:
@@ -106,21 +106,11 @@ jobs:
             core.setSecret(token)
             core.exportVariable('INFISICAL_AUTH_JWT', token)
 
-      # A new GitHub runner has no remembered backend configuration. Initialize
-      # GCS explicitly before restoring the HTTP configuration, so migrate-state
-      # copies the existing live state rather than creating an empty one.
-      - name: Initialize source state in GCS
-        run: |
-          cp providers.tf "$RUNNER_TEMP/providers.tf.http"
-          perl -0pi -e 's{  # OCI Object Storage pre-authenticated URL.*?  backend "http" \{\n    update_method = "PUT"\n  \}}{  backend "gcs" {\n    bucket = "decent-visualizer-tfstate"\n    prefix = "decent-visualizer"\n  }}s' providers.tf
-          tofu init
-          tofu state list | grep -q '^module.cloudflare.cloudflare_pages_project.frontend$'
-        working-directory: infra
-
-      - name: Migrate state to OCI Object Storage
-        run: |
-          cp "$RUNNER_TEMP/providers.tf.http" providers.tf
-          tofu init -migrate-state -force-copy -backend-config="address=$OCI_TF_STATE_URL"
+      # OCI Object Storage is the authoritative state backend. The one-time
+      # GCS-to-OCI migration has completed; copying from GCS on every run
+      # would discard resources created in OCI by prior applies.
+      - name: Initialize OCI state
+        run: tofu init -backend-config="address=$OCI_TF_STATE_URL"
         working-directory: infra
 
       - name: Plan
@@ -213,8 +203,12 @@ jobs:
         run: |
           tofu init -backend-config="address=$OCI_TF_STATE_URL"
           tunnel_token="$(tofu output -raw cloudflare_tunnel_token)"
+          backup_bucket="$(tofu output -raw oci_backup_bucket)"
+          object_storage_namespace="$(tofu output -raw oci_object_storage_namespace)"
           echo "::add-mask::$tunnel_token"
           echo "CLOUDFLARED_TOKEN=$tunnel_token" >> "$GITHUB_ENV"
+          echo "OCI_BACKUP_BUCKET=$backup_bucket" >> "$GITHUB_ENV"
+          echo "OCI_OBJECT_STORAGE_NAMESPACE=$object_storage_namespace" >> "$GITHUB_ENV"
         working-directory: infra
 
       - name: Prepare deployment credentials
@@ -245,6 +239,9 @@ jobs:
             printf 'INFISICAL_CLIENT_ID=%s\n' "$infisical_backend_client_id"
             printf 'INFISICAL_CLIENT_SECRET=%s\n' "$infisical_backend_client_secret"
             printf 'CLOUDFLARED_TOKEN=%s\n' "$CLOUDFLARED_TOKEN"
+            printf 'OCI_BACKUP_BUCKET=%s\n' "$OCI_BACKUP_BUCKET"
+            printf 'OCI_OBJECT_STORAGE_NAMESPACE=%s\n' "$OCI_OBJECT_STORAGE_NAMESPACE"
+            printf 'OCI_REGION=%s\n' "$oci_region"
           } > "$runtime_env"
           host="$external_vm_host"
           user="$external_vm_ssh_user"
@@ -261,11 +258,17 @@ jobs:
         run: |
           host="$external_vm_host"
           user="$external_vm_ssh_user"
-          ssh -i "$OCI_SSH_KEY" -o BatchMode=yes "$user@$host" bash -s <<'REMOTE'
+          ssh -i "$OCI_SSH_KEY" -o BatchMode=yes "$user@$host" 'bash -seuo pipefail' <<'REMOTE'
           cd /opt/decent-visualizer
           install -m 644 /tmp/docker-compose.yml docker-compose.yml
           install -m 600 /tmp/runtime.env runtime.env
           docker load < /tmp/backend-image.tar.gz
+          # First deployment only: stop writes, import Supabase into SQLite,
+          # and retain the named volume across future image replacements.
+          if ! docker volume inspect decent-visualizer_database >/dev/null 2>&1; then
+            docker compose --env-file runtime.env down
+            docker compose --env-file runtime.env run --rm sqlite-migrate
+          fi
           docker compose --env-file runtime.env up -d --remove-orphans
           docker image prune -f
           rm -f /tmp/backend-image.tar.gz /tmp/docker-compose.yml /tmp/runtime.env

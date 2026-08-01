@@ -63,8 +63,17 @@ security_token_file=${config_dir}/security_token
 EOF
 chmod 600 "$config_dir/config"
 
+# The OCI Terraform provider resolves its config from the standard OCI CLI
+# location. Keep the sensitive key and token in RUNNER_TEMP, and install only
+# this short-lived config file into the ephemeral runner home directory.
+mkdir -p "$HOME/.oci"
+chmod 700 "$HOME/.oci"
+cp "$config_dir/config" "$HOME/.oci/config"
+chmod 600 "$HOME/.oci/config"
+
 {
   echo "OCI_CONFIG_FILE=$config_dir/config"
+  echo "OCI_CLI_CONFIG_FILE=$config_dir/config"
   echo 'OCI_CONFIG_FILE_PROFILE=GITHUB_WIF'
   echo 'OCI_AUTH=SecurityToken'
 } >> "$GITHUB_ENV"

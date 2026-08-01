@@ -1,71 +1,22 @@
-from types import SimpleNamespace
-from typing import cast
-from unittest.mock import MagicMock
+from pathlib import Path
 
-from supabase import Client
-
+from app.db import Database
+from app.models.bean import BeanCreate
+from app.models.entities import EntityCreate
 from app.storage.beans import BeanStorage
+from app.storage.entities import EntityStorage
 
 
-def test_list_page_uses_full_text_rpc_and_fetches_only_the_requested_page():
-    bean_id = "1e7969d6-a99a-4ca9-84c0-73995678e622"
-    search_rpc = MagicMock()
-    search_rpc.execute.return_value = SimpleNamespace(data=[{"id": bean_id, "total_count": 42}])
+def test_list_page_filters_sorts_and_returns_only_requested_page(tmp_path: Path):
+    database = Database(str(tmp_path / "test.sqlite3"))
+    entities = EntityStorage(database)
+    roaster = entities.create(EntityCreate(kind="roaster", name="Sey Coffee"))
+    beans = BeanStorage(database)
+    beans.create(BeanCreate(name="Zulu", roaster_id=roaster.id, notes="Ethiopia washed"))
+    beans.create(BeanCreate(name="Alpha", roaster_id=roaster.id, notes="Ethiopia natural"))
 
-    bean_builder = MagicMock()
-    bean_builder.select.return_value = bean_builder
-    bean_builder.in_.return_value = bean_builder
-    bean_builder.execute.return_value = SimpleNamespace(
-        data=[
-            {
-                "id": bean_id,
-                "name": "Halo Hartume",
-                "roaster": {"id": "roaster-1", "name": "Sey Coffee"},
-                "producer": None,
-                "farm": None,
-                "country_code": "ET",
-                "variety": None,
-                "process": {"id": "process-1", "name": "Washed"},
-                "roast_level": None,
-                "roast_date": None,
-                "notes": "Bergamot",
-                "created_at": "2026-06-28T00:00:00Z",
-            }
-        ]
-    )
+    result = beans.list_page(page=1, page_size=1, q="ethiopia", sort_by="name", descending=False)
 
-    client = MagicMock()
-    builders = {
-        "beans": bean_builder,
-        "canonical_entities": MagicMock(),
-        "entity_aliases": MagicMock(),
-    }
-
-    def table(name: str) -> MagicMock:
-        return builders[name]
-
-    client.table.side_effect = table
-    client.rpc.return_value = search_rpc
-
-    result = BeanStorage(cast(Client, client)).list_page(
-        page=2,
-        page_size=20,
-        q="ethiopia washed",
-        sort_by="name",
-        descending=False,
-    )
-
-    client.rpc.assert_called_once_with(
-        "search_bean_ids",
-        {
-            "p_query": "ethiopia washed",
-            "p_offset": 20,
-            "p_limit": 20,
-            "p_sort_by": "name",
-            "p_desc": False,
-        },
-    )
-    bean_builder.in_.assert_called_once_with("id", [bean_id])
-    assert result.total == 42
-    assert result.page == 2
-    assert [bean.name for bean in result.items] == ["Halo Hartume"]
+    assert result.total == 2
+    assert result.page == 1
+    assert [bean.name for bean in result.items] == ["Alpha"]

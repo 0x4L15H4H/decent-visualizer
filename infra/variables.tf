@@ -1,49 +1,3 @@
-# ── GCP ────────────────────────────────────────────────────────────────
-
-variable "gcp_service_account" {
-  description = "Email of the GCP service account used by GitHub Actions. Needs storage.objectAdmin permissions."
-  type        = string
-}
-
-variable "gcp_project_id" {
-  description = "GCP project ID"
-  type        = string
-}
-
-variable "gcp_region" {
-  description = "GCP region for GCE"
-  type        = string
-  default     = "us-east1"
-
-  validation {
-    condition     = contains(["us-east1", "us-central1", "us-west1"], var.gcp_region)
-    error_message = "Region must be one of the GCE Always Free regions: us-east1, us-central1, or us-west1."
-  }
-}
-
-variable "gcp_zone" {
-  description = "GCP zone for GCE"
-  type        = string
-  default     = "us-east1-b"
-}
-
-variable "vm_machine_type" {
-  description = "VM machine type"
-  type        = string
-  default     = "e2-micro"
-
-  validation {
-    condition     = contains(["e2-micro", "e2-small", "e2-medium"], var.vm_machine_type)
-    error_message = "Machine type must be e2-micro (free), e2-small (~$8/mo), or e2-medium (~$17/mo)."
-  }
-}
-
-variable "vm_boot_disk_size_gb" {
-  description = "Boot disk size in GB (Always Free allows up to 30GB standard PD)"
-  type        = number
-  default     = 30
-}
-
 # ── External VM ───────────────────────────────────────────────────────
 
 variable "external_vm_host" {
@@ -55,6 +9,21 @@ variable "external_vm_ssh_user" {
   description = "SSH user for the externally managed deployment VM."
   type        = string
   default     = "opc"
+}
+
+variable "external_vm_instance_ocid" {
+  description = "OCI instance OCID used for the VM-only backup dynamic group."
+  type        = string
+}
+
+variable "oci_tenancy_ocid" {
+  description = "OCI tenancy OCID; tenancy is the root compartment for IAM and backup storage."
+  type        = string
+}
+
+variable "oci_region" {
+  description = "OCI region for Object Storage backups."
+  type        = string
 }
 
 # ── Supabase ───────────────────────────────────────────────────────────

@@ -16,8 +16,10 @@ class CloudflareConfig(BaseModel):
 
 
 class Settings(BaseSettings):
-    supabase_url: str
-    supabase_service_key: str
+    database_path: str = "/data/decent-visualizer.sqlite3"
+    # Retained only for the one-time Supabase-to-SQLite importer.
+    supabase_url: str | None = None
+    supabase_service_key: str | None = None
     gemini_api_key: str | None = None
     parallel_api_key: str | None = None
 
@@ -88,4 +90,4 @@ def get_settings() -> Settings:
     env = os.getenv("APP_ENV", "dev")
     if env == "prod":
         return ProdSettings()  # pyright: ignore[reportCallIssue]
-    return DevSettings()  # pyright: ignore[reportCallIssue]
+    return DevSettings()

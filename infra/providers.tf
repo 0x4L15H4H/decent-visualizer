@@ -2,10 +2,6 @@ terraform {
   required_version = ">= 1.12"
 
   required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 6.0"
-    }
     supabase = {
       source  = "supabase/supabase"
       version = "~> 1.0"
@@ -22,6 +18,10 @@ terraform {
       source  = "Infisical/infisical"
       version = "~> 0.16"
     }
+    oci = {
+      source  = "oracle/oci"
+      version = "~> 8.0"
+    }
   }
 
   # OCI Object Storage pre-authenticated URL is supplied at init time as an
@@ -30,12 +30,6 @@ terraform {
   backend "http" {
     update_method = "PUT"
   }
-}
-
-provider "google" {
-  project = var.gcp_project_id
-  region  = var.gcp_region
-  zone    = var.gcp_zone
 }
 
 provider "supabase" {
@@ -53,4 +47,10 @@ provider "infisical" {
       identity_id = var.infisical_deploy_identity_id
     }
   }
+}
+
+provider "oci" {
+  auth                = "SecurityToken"
+  config_file_profile = "GITHUB_WIF"
+  region              = var.oci_region
 }

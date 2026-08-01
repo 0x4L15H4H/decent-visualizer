@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile
 
 from app.config import get_settings
-from app.db import get_supabase
+from app.db import get_database
 from app.dependencies import get_current_user
 from app.lib.photo_extract import get_bean_info_from_image
 from app.models.bean import Bean, BeanCreate, BeanExtracted, BeanPage, BeanUpdate
@@ -16,11 +16,11 @@ _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
 
 def _storage() -> BeanStorage:
-    return BeanStorage(get_supabase())
+    return BeanStorage(get_database())
 
 
 def _entity_storage() -> EntityStorage:
-    return EntityStorage(get_supabase())
+    return EntityStorage(get_database())
 
 
 @router.get("", response_model=BeanPage)

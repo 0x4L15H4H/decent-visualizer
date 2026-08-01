@@ -1,8 +1,6 @@
 import json
-from typing import cast
 
 import pytest
-from postgrest.types import JSON
 
 from app.compression import compress_json, decompress_json
 from app.storage.shots import ShotStorage, decode_bytea, encode_bytea
@@ -78,8 +76,7 @@ def test_shot_storage_reads_compressed_measurements() -> None:
     row = shot_row()
     row["measurements"] = encode_bytea(compress_json(MEASUREMENTS))
 
-    model = ShotStorage._to_model(  # pyright: ignore[reportPrivateUsage]
-        cast(JSON, row)
-    )
+    row["workflow"] = json.dumps(row["workflow"])
+    model = ShotStorage._to_model(row)  # pyright: ignore[reportPrivateUsage]
 
     assert model.measurements[0].machine.pressure == 8.5

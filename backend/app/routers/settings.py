@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.db import get_supabase
+from app.db import get_database
 from app.dependencies import get_current_user
 from app.models.settings import AppSettings, AppSettingsUpdate
 from app.storage.settings import SettingsStorage
@@ -9,7 +9,7 @@ router = APIRouter(prefix="/settings", tags=["settings"], dependencies=[Depends(
 
 
 def _storage() -> SettingsStorage:
-    return SettingsStorage(get_supabase())
+    return SettingsStorage(get_database())
 
 
 @router.get("", response_model=AppSettings)

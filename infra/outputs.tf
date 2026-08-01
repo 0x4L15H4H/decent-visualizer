@@ -1,13 +1,3 @@
-output "gcp_project_id" {
-  description = "GCP project ID (used by scripts/deploy.sh)"
-  value       = var.gcp_project_id
-}
-
-output "gcp_zone" {
-  description = "GCP zone of the backend VM (used by scripts/deploy.sh)"
-  value       = var.gcp_zone
-}
-
 output "vm_external_ip" {
   description = "External host of the managed backend VM"
   value       = var.external_vm_host
@@ -53,4 +43,14 @@ output "supabase_db_password" {
   description = "Generated Postgres password for the Supabase project"
   sensitive   = true
   value       = random_password.supabase_db.result
+}
+
+output "oci_backup_bucket" {
+  description = "Private Object Storage bucket used for SQLite backups."
+  value       = oci_objectstorage_bucket.sqlite_backups.name
+}
+
+output "oci_object_storage_namespace" {
+  description = "Object Storage namespace used by the SQLite backup uploader."
+  value       = data.oci_objectstorage_namespace.current.namespace
 }
