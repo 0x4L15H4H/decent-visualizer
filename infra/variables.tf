@@ -26,19 +26,6 @@ variable "oci_region" {
   type        = string
 }
 
-# ── Supabase ───────────────────────────────────────────────────────────
-
-variable "supabase_org_id" {
-  description = "Supabase organization slug (from dashboard URL or org settings)"
-  type        = string
-}
-
-variable "supabase_db_region" {
-  description = "Supabase database region (e.g. us-east-1, eu-west-1)"
-  type        = string
-  default     = "us-east-1"
-}
-
 
 # ── Cloudflare ─────────────────────────────────────────────────────────
 
@@ -65,7 +52,7 @@ variable "domain" {
 # ── Application ────────────────────────────────────────────────────────
 
 variable "project_name" {
-  description = "Human-readable project name (used for Supabase display name)"
+  description = "Human-readable project name"
   type        = string
   default     = "Decent Visualizer"
 }

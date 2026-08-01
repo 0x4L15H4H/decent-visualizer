@@ -20,15 +20,6 @@ services:
         max-file: "3"
     restart: unless-stopped
 
-  sqlite-migrate:
-    image: decent-visualizer-backend:latest
-    env_file:
-      - /opt/decent-visualizer/runtime.env
-    volumes:
-      - database:/data
-    command: ["uv", "run", "python", "-m", "app.migrate_supabase"]
-    profiles: ["migration"]
-
   sqlite-backup:
     image: decent-visualizer-backend:latest
     env_file:

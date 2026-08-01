@@ -24,27 +24,6 @@ output "frontend_url" {
   value       = module.cloudflare.pages_url
 }
 
-output "supabase_project_ref" {
-  description = "Supabase project reference (use in dashboard: supabase.com/dashboard/project/<ref>)"
-  value       = module.supabase.project_ref
-}
-
-output "supabase_api_url" {
-  description = "Supabase REST API URL"
-  value       = module.supabase.api_url
-}
-
-output "supabase_dashboard_url" {
-  description = "Supabase dashboard URL for the project"
-  value       = "https://supabase.com/dashboard/project/${module.supabase.project_ref}"
-}
-
-output "supabase_db_password" {
-  description = "Generated Postgres password for the Supabase project"
-  sensitive   = true
-  value       = random_password.supabase_db.result
-}
-
 output "oci_backup_bucket" {
   description = "Private Object Storage bucket used for SQLite backups."
   value       = oci_objectstorage_bucket.sqlite_backups.name

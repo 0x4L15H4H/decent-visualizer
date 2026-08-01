@@ -2,10 +2,6 @@ terraform {
   required_version = ">= 1.12"
 
   required_providers {
-    supabase = {
-      source  = "supabase/supabase"
-      version = "~> 1.0"
-    }
     cloudflare = {
       source  = "cloudflare/cloudflare"
       version = "~> 4.0"
@@ -30,10 +26,6 @@ terraform {
   backend "http" {
     update_method = "PUT"
   }
-}
-
-provider "supabase" {
-  access_token = ephemeral.infisical_secret.supabase_admin_token.value
 }
 
 provider "cloudflare" {

@@ -220,12 +220,6 @@ jobs:
           install -m 644 /tmp/docker-compose.yml docker-compose.yml
           install -m 600 /tmp/runtime.env runtime.env
           docker load < /tmp/backend-image.tar.gz
-          # First deployment only: stop writes, import Supabase into SQLite,
-          # and retain the named volume across future image replacements.
-          if ! docker volume inspect decent-visualizer_database >/dev/null 2>&1; then
-            docker compose --env-file runtime.env down
-            docker compose --env-file runtime.env run --rm sqlite-migrate
-          fi
           docker compose --env-file runtime.env up -d --remove-orphans
           docker image prune -f
           rm -f /tmp/backend-image.tar.gz /tmp/docker-compose.yml /tmp/runtime.env
