@@ -2,8 +2,18 @@ import sqlite3
 import threading
 from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
+
 from app.config import get_settings
-from app.schema import DEFAULT_PROCESSES, SCHEMA
+from app.schema import DEFAULT_PROCESSES
+
+
+def migrate_database(path: str) -> None:
+    config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+    config.set_main_option("script_location", str(Path(__file__).parents[1] / "migrations"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{path}")
+    command.upgrade(config, "head")
 
 
 class Database:
@@ -19,7 +29,7 @@ class Database:
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("PRAGMA journal_mode = WAL")
-            connection.executescript(SCHEMA)
+            migrate_database(self._path)
             connection.execute(
                 "INSERT OR IGNORE INTO settings(key, value) VALUES ('signups_enabled', 'true')"
             )
